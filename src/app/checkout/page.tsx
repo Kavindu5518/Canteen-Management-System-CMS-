@@ -10,6 +10,8 @@ import CustomerBottomNav from '@/components/customer/CustomerBottomNav'
 import { cn, formatPrice } from '@/lib/utils'
 import type { CartItem, DeliveryType, PaymentMethod } from '@/types'
 import { Scanner } from '@yudiel/react-qr-scanner'
+// 1. PayHere Hash import එක මෙතනට එනවා
+import { generatePayHereHash } from '@/app/actions/payhere'
 
 export default function CheckoutPage() {
   const router = useRouter()
@@ -42,6 +44,44 @@ export default function CheckoutPage() {
       sessionStorage.setItem('cart', JSON.stringify(updated))
       return updated
     })
+  }
+
+  // 2. PayHere Payment පටන් ගන්නා function එක මෙතනට එනවා
+  async function startPayHerePayment(orderNum: string, amount: number) {
+    const hash = await generatePayHereHash(orderNum, amount);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const payment = {
+      sandbox: true, // Testing නිසා true දාන්න. Live යනකොට false කරන්න.
+      merchant_id: process.env.NEXT_PUBLIC_PAYHERE_MERCHANT_ID,
+      return_url: `${window.location.origin}/orders`,
+      cancel_url: `${window.location.origin}/checkout`,
+      notify_url: 'https://your-webhook.com/api/payhere-notify',
+      order_id: orderNum,
+      items: 'Canteen Food Order',
+      amount: amount,
+      currency: 'LKR',
+      hash: hash,
+      first_name: user?.user_metadata?.full_name?.split(' ')[0] || 'Customer',
+      last_name: user?.user_metadata?.full_name?.split(' ')[1] || 'User',
+      email: user?.email || '',
+      phone: '0771234567',
+      address: 'Campus Canteen',
+      city: 'Colombo',
+      country: 'Sri Lanka',
+    };
+
+    if (typeof window !== 'undefined' && (window as any).payhere) {
+      (window as any).payhere.startPayment(payment);
+
+      (window as any).payhere.onCompleted = function onCompleted(orderId: string) {
+        setOrderId(orderId);
+        sessionStorage.removeItem('cart');
+        setSuccess(true);
+      };
+    } else {
+      alert("PayHere is not loaded. Please refresh the page.");
+    }
   }
 
   async function placeOrder() {
@@ -83,7 +123,7 @@ export default function CheckoutPage() {
       const { error: itemsError } = await supabase.from('order_items').insert(orderItemsData)
       if (itemsError) throw itemsError
 
-      // Perfect Sync: Attempt to deduct from inventory if items match by name
+      // Inventory Sync
       try {
         for (const item of cart) {
           const { data: invData } = await supabase
@@ -102,12 +142,20 @@ export default function CheckoutPage() {
           }
         }
       } catch (invErr) {
-        console.warn("Inventory Sync (Deduction) failed:", invErr)
+        console.warn("Inventory Sync failed:", invErr)
       }
 
-      setOrderId(orderNum)
-      sessionStorage.removeItem('cart')
-      setSuccess(true)
+      // 3. මෙතනදී Payment Method එක අනුව තීරණය කරනවා
+      if (paymentMethod === 'card') {
+        // PayHere පටන් ගන්න
+        await startPayHerePayment(orderNum, total);
+      } else {
+        // QR Scan නම් සාමාන්‍ය විදිහටම Success පෙන්නන්න
+        setOrderId(orderNum)
+        sessionStorage.removeItem('cart')
+        setSuccess(true)
+      }
+
     } catch (e: any) {
       console.error("Order Place Error:", e)
       alert("Failed to place order: " + e.message)
@@ -146,7 +194,6 @@ export default function CheckoutPage() {
 
   return (
     <div className="bg-gray-50 has-bottom-nav min-h-screen">
-
       {/* Header */}
       <div className="bg-white px-5 pt-14 pb-4 sticky top-0 z-40 flex items-center gap-3 border-b border-gray-100">
         <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
@@ -159,7 +206,6 @@ export default function CheckoutPage() {
       </div>
 
       <div className="px-5 py-4 space-y-4">
-
         {/* Basket */}
         <div className="bg-white rounded-3xl p-5 shadow-sm">
           <h2 className="text-base font-bold text-gray-900 mb-3">Your Basket</h2>
@@ -254,8 +300,8 @@ export default function CheckoutPage() {
             )}>
               <CreditCard size={20} className={paymentMethod === 'card' ? 'text-primary' : 'text-gray-400'} />
               <div className="flex-1">
-                <p className="text-sm font-bold text-gray-900">•••• •••• •••• 4242</p>
-                <p className="text-xs text-gray-400">Exp: 12/26</p>
+                <p className="text-sm font-bold text-gray-900">Card / LankaPay / JustPay</p>
+                <p className="text-xs text-gray-400">Visa, Master, FriMi, Genie</p>
               </div>
               <input
                 type="radio"
@@ -273,8 +319,8 @@ export default function CheckoutPage() {
             )}>
               <QrCode size={20} className={paymentMethod === 'qr_scan' ? 'text-primary' : 'text-gray-400'} />
               <div className="flex-1">
-                <p className="text-sm font-bold text-gray-900">QR Scan & Pay</p>
-                <p className="text-xs text-gray-400">UPI, GPay, PhonePe</p>
+                <p className="text-sm font-bold text-gray-900">Direct QR Scan</p>
+                <p className="text-xs text-gray-400">Scan at Canteen Counter</p>
               </div>
               <input
                 type="radio"
@@ -285,13 +331,12 @@ export default function CheckoutPage() {
               />
             </label>
 
-            {/* QR Code Visualization */}
+            {/* QR Visualization... (ඉතිරි code එක කලින් විදිහටම තියෙනවා) */}
             {paymentMethod === 'qr_scan' && (
               <div className="mt-4 p-6 bg-white border-2 border-primary/20 rounded-3xl flex flex-col items-center animate-in zoom-in duration-300">
                 <p className="text-xs text-gray-400 font-bold uppercase tracking-widest text-center mb-4">
                   {qrScanned ? "Payment Verified" : `Scan Canteen QR to Pay ${formatPrice(total)}`}
                 </p>
-
                 {!qrScanned ? (
                   <div className="relative w-full aspect-square max-w-[200px] bg-gray-50 flex flex-col items-center justify-center overflow-hidden rounded-3xl border-4 border-dashed border-gray-200 group">
                     <Scanner
@@ -300,15 +345,8 @@ export default function CheckoutPage() {
                           setQrScanned(true)
                         }
                       }}
-                      components={{
-                        onOff: false,
-                        torch: false,
-                        zoom: false,
-                        finder: true
-                      }}
-                      styles={{
-                        container: { width: '100%', height: '100%' },
-                      }}
+                      components={{ onOff: false, torch: false, zoom: false, finder: true }}
+                      styles={{ container: { width: '100%', height: '100%' } }}
                     />
                     <div className="absolute inset-4 border-2 border-primary/20 rounded-[24px] animate-pulse pointer-events-none" />
                   </div>
@@ -318,18 +356,8 @@ export default function CheckoutPage() {
                     <span className="text-xs font-black text-green-600 uppercase tracking-widest px-4 text-center">Payment Captured</span>
                   </div>
                 )}
-
-                <div className="flex gap-2 mt-6">
-                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[10px] font-black tracking-widest text-blue-600">GPay</div>
-                  <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-[10px] font-black tracking-widest text-purple-600">Pe</div>
-                  <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-[10px] font-black tracking-widest text-green-600">UPI</div>
-                </div>
               </div>
             )}
-
-            <button className="flex items-center gap-2 text-sm text-primary font-bold mt-3 ml-1">
-              <Plus size={16} /> Add New Card
-            </button>
           </div>
         </div>
 
@@ -353,10 +381,9 @@ export default function CheckoutPage() {
             </div>
           </div>
         </div>
-
       </div>
 
-      {/* Place Order */}
+      {/* Place Order Button */}
       <div className="px-5 pb-24 pt-4">
         <button
           onClick={placeOrder}
@@ -364,9 +391,9 @@ export default function CheckoutPage() {
           className="btn-primary flex items-center justify-center gap-2 transition-all w-full py-4 text-base"
         >
           {placing
-            ? <><Loader2 size={18} className="animate-spin" /> Placing Order...</>
-            : paymentMethod === 'qr_scan' && !qrScanned
-              ? `Scan QR to Pay • ${formatPrice(total)}`
+            ? <><Loader2 size={18} className="animate-spin" /> Processing...</>
+            : paymentMethod === 'card'
+              ? `Pay with PayHere • ${formatPrice(total)}`
               : `Place Order • ${formatPrice(total)} →`
           }
         </button>
