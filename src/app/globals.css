@@ -1,0 +1,137 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Force light mode always */
+:root {
+  color-scheme: light;
+  --font-nunito: 'Nunito', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background-color: #F8F8F8;
+  color: #1A1A1A;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Mobile-only container: constrained to 430px wide, centered on larger screens */
+.mobile-container {
+  max-width: 430px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: white; /* Default background */
+  position: relative;
+  box-shadow: 0 0 100px rgba(0,0,0,0.05); /* Soft shadow on desktop */
+}
+
+/* Bottom nav padding */
+.has-bottom-nav {
+  padding-bottom: 80px;
+}
+
+/* Scrollbar hide */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Smooth transitions */
+* { transition-property: none; }
+button, a, [role="button"] {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+button:active, [role="button"]:active {
+  transform: scale(0.97);
+}
+
+/* Card press effect */
+.card-press:active {
+  transform: scale(0.98);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+/* Safe area insets for mobile */
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Input focus */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #F4A11B !important;
+  box-shadow: 0 0 0 3px rgba(244, 161, 27, 0.15);
+}
+
+/* Status badges */
+.badge-pending  { background: #FEF3C7; color: #92400E; }
+.badge-preparing{ background: #DBEAFE; color: #1E40AF; }
+.badge-ready    { background: #D1FAE5; color: #065F46; }
+.badge-delivered{ background: #E5E7EB; color: #374151; }
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white font-bold py-4 px-6 rounded-2xl w-full text-base shadow-primary active:scale-95 transition-all;
+  }
+  .btn-outline {
+    @apply border-2 border-primary text-primary font-bold py-3.5 px-6 rounded-2xl w-full text-base bg-transparent active:scale-95;
+  }
+  .input-field {
+    @apply w-full border border-gray-200 rounded-2xl px-4 py-3.5 text-sm bg-white placeholder-gray-400 font-medium;
+  }
+  .card {
+    @apply bg-white rounded-3xl shadow-card p-4;
+  }
+  .section-title {
+    @apply text-lg font-bold text-text-primary;
+  }
+  .admin-header {
+    @apply bg-white px-6 pt-12 pb-5 sticky top-0 z-40 border-b border-gray-100 flex items-center justify-between;
+  }
+}
+
+/* ── Custom Select Dropdown Styling ── */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23F4A11B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 42px !important;
+  border-radius: 16px !important;
+  border: 1.5px solid #E5E7EB;
+  background-color: #fff;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #1A1A1A;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+select:hover {
+  border-color: #F4A11B;
+}
+
+select:focus {
+  outline: none;
+  border-color: #F4A11B !important;
+  box-shadow: 0 0 0 3px rgba(244, 161, 27, 0.15);
+}
+
+select option {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  padding: 10px 14px;
+  background-color: #ffffff;
+  color: #1A1A1A;
+}
+
