@@ -108,7 +108,9 @@ export default function EmployeeDashboard() {
     }
     setActionLoading(true)
     try {
-      const empId = employeeData?.id || supabaseUser.id
+      // Only use employeeData.id if it exists in the employees table (valid FK).
+      // If the user isn't in the employees table yet, set employeeId to null.
+      const empId = employeeData?.id ?? null
       const { data, error } = await supabase.from('attendance').insert([{
         employeeId: empId,
         employeeName: userData.name,
@@ -123,9 +125,9 @@ export default function EmployeeDashboard() {
       setShowScanner(false)
       setIsScanned(false)
       setUserCode('')
-    } catch (err) {
-      console.error(err)
-      alert("Failed to sign in. Try again.")
+    } catch (err: any) {
+      console.error('Check-in error:', err)
+      alert(`Failed to sign in: ${err?.message || 'Unknown error. Try again.'}`)
     } finally {
       setActionLoading(false)
     }
