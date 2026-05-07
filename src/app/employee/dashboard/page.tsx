@@ -25,9 +25,31 @@ export default function EmployeeDashboard() {
   const [userCode, setUserCode] = useState('')
   const [isScanned, setIsScanned] = useState(false)
   const [vCode, setVCode] = useState(`CAN-${new Date().getHours()}${new Date().getDate()}`)
+  const [vCode, setVCode] = useState('')
   const [tasks, setTasks] = useState<EmployeeTask[]>([])
 
   const todayStr = new Date().toISOString().split('T')[0]
+  // Use local date (not UTC) to avoid IST midnight crossing bug
+  const todayStr = (() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })()
+
+  // Refresh security code whenever modal is opened
+  const openScanner = () => {
+    const now = new Date()
+    setVCode(`CAN-${now.getHours()}${now.getDate()}`)
+    setIsScanned(false)
+    setUserCode('')
+    setRegNumber('')
+    setShowScanner(true)
+  }
+
+  useEffect(() => {
+    // Role guard — redirect non-employees away
+    if (!authLoading && userData && userData.role !== 'employee' && userData.role !== 'admin') {
+      router.replace('/menu')
+    }
 
   useEffect(() => {
     let unsubs: any[] = []
@@ -35,42 +57,27 @@ export default function EmployeeDashboard() {
     if (!supabaseUser) return
 
     const fetchData = async () => {
-      // 1. Fetch Employee Details (Wage, etc)
-      const { data: empData } = await supabase.from('employees').select('*').eq('email', supabaseUser.email).limit(1)
-      let currentEmpData = null
       if (empData && empData.length > 0) {
-        setEmpData(empData[0])
-        currentEmpData = empData[0]
       }
 
       // 2. Fetch Today's Attendance
+      // Strategy: if we have an employees record, query by employeeId.
       if (currentEmpData) {
-        const { data: attData } = await supabase.from('attendance')
           .select('*')
           .eq('employeeId', currentEmpData.id)
           .eq('date', todayStr)
           .limit(1)
-        if (attData && attData.length > 0) setAttendance(attData[0] as AttendanceRecord)
-        else setAttendance(null)
-      } else {
-        const { data: attData } = await supabase.from('attendance')
           .select('*')
-          .eq('employeeId', supabaseUser.id)
           .eq('date', todayStr)
           .limit(1)
-        if (attData && attData.length > 0) setAttendance(attData[0] as AttendanceRecord)
-        else setAttendance(null)
       }
 
       // 3. Fetch Active Orders
-      const { data: orderData } = await supabase.from('orders')
         .select('*, items:order_items(*)')
         .in('status', ['pending', 'preparing', 'ready'])
         .order('createdAt', { ascending: false })
       if (orderData) setOrders(orderData as Order[])
 
-      // 4. Fetch Tasks
-      const { data: taskData } = await supabase.from('employee_tasks')
         .select('*')
         .eq('employeeId', supabaseUser.id)
         .order('createdAt', { ascending: false })
@@ -81,7 +88,6 @@ export default function EmployeeDashboard() {
 
     fetchData()
 
-    // Subscriptions
     const subOrders = supabase.channel('emp_orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchData())
       .subscribe()
@@ -95,7 +101,6 @@ export default function EmployeeDashboard() {
     return () => {
       unsubs.forEach(s => supabase.removeChannel(s))
     }
-  }, [supabaseUser, todayStr])
 
   async function handleCheckIn() {
     if (!supabaseUser || !userData || !regNumber || !userCode) {
@@ -237,7 +242,6 @@ export default function EmployeeDashboard() {
           </div>
 
           {!isCheckedOut ? (
-            <button onClick={() => setShowScanner(true)} disabled={actionLoading}
               className={cn('w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg',
                 isCheckedIn ? 'bg-gray-900 text-white' : 'bg-primary text-white shadow-primary')}>
               {actionLoading ? <Loader2 className="animate-spin" size={20} /> : (
