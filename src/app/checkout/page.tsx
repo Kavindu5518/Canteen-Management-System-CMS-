@@ -56,7 +56,7 @@ export default function CheckoutPage() {
       merchant_id: process.env.NEXT_PUBLIC_PAYHERE_MERCHANT_ID,
       return_url: `${window.location.origin}/orders`,
       cancel_url: `${window.location.origin}/checkout`,
-      notify_url: 'https://your-webhook.com/api/payhere-notify',
+      notify_url: 'https://canteen-management-system-cms-v9yw.vercel.app/api/payhere-notify',
       order_id: orderNum,
       items: 'Canteen Food Order',
       amount: amount,

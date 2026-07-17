@@ -6,8 +6,8 @@ export async function generatePayHereHash(orderId: string, amount: number) {
     const secret = process.env.PAYHERE_SECRET!;
     const currency = 'LKR';
 
-    // Amount => decimals
-    const formattedAmount = amount.toLocaleString('en-us', { minimumFractionDigits: 2 }).replaceAll(',', '');
+    // Amount => decimals (PayHere expects exactly "105.00" format — toFixed is safest)
+    const formattedAmount = amount.toFixed(2);
 
     // MD5 Hash formula: UpperCase(md5(merchant_id + order_id + formatted_amount + currency + UpperCase(md5(merchant_secret))))
     const hashedSecret = crypto.createHash('md5').update(secret).digest('hex').toUpperCase();
