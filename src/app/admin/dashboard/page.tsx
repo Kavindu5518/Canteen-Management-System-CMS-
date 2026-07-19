@@ -9,6 +9,7 @@ import AdminBottomNav from '@/components/admin/AdminBottomNav'
 import { cn, formatPrice } from '@/lib/utils'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/lib/toast'
 
 const DEMO_TREND = [
   { day: 'MON', sales: 18000 }, { day: 'TUE', sales: 22000 }, { day: 'WED', sales: 19000 },
