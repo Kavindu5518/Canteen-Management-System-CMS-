@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { ArrowLeft, Camera, User, Bell, Lock, Monitor, ChevronRight, LogOut, Loader2 } from 'lucide-react'
 import CustomerBottomNav from '@/components/customer/CustomerBottomNav'
+import { useToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 
 const SECTIONS = [
@@ -26,6 +27,7 @@ const SECTIONS = [
 export default function ProfilePage() {
   const router = useRouter()
   const { userData, supabaseUser } = useAuth()
+  const { showToast } = useToast()
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -49,7 +51,7 @@ export default function ProfilePage() {
     // 2MB size limit
     const MAX_SIZE = 2 * 1024 * 1024
     if (file.size > MAX_SIZE) {
-      alert('Image size must be less than 2MB. Please choose a smaller image.')
+      showToast('warning', 'Image size must be less than 2MB. Please choose a smaller image.')
       e.target.value = ''
       return
     }
@@ -73,7 +75,7 @@ export default function ProfilePage() {
       window.location.reload()
     } catch (error: any) {
       console.error('Error uploading avatar:', error)
-      alert('Failed to upload photo: ' + (error.message || 'Please ensure the avatars storage bucket exists in Supabase.'))
+      showToast('error', 'Failed to upload photo: ' + (error.message || 'Ensure the avatars storage bucket exists in Supabase.'))
     } finally {
       setUploading(false)
     }

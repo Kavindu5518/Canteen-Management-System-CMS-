@@ -4,9 +4,13 @@ import { supabase } from '@/lib/supabase'
 import { Search, Plus, Truck, Phone, Mail, MapPin, X, Loader2, Edit2, Trash2, Calendar, AlertCircle, PackageCheck, Coins } from 'lucide-react'
 import AdminBottomNav from '@/components/admin/AdminBottomNav'
 import { cn, formatPrice } from '@/lib/utils'
+import { useToast } from '@/lib/toast'
+import { useConfirm } from '@/lib/confirm'
 import type { Supplier, InventoryItem } from '@/types'
 
 export default function AdminSuppliersPage() {
+  const { showToast } = useToast()
+  const { confirm } = useConfirm()
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [search, setSearch] = useState('')
@@ -54,7 +58,11 @@ export default function AdminSuppliersPage() {
   )
 
   async function del(id: string) {
-    if (!confirm('Remove this supplier?')) return
+    const isConfirmed = await confirm({
+      title: 'Remove Supplier',
+      message: 'Are you sure you want to permanently remove this supplier?'
+    })
+    if (!isConfirmed) return
     try { await supabase.from('suppliers').delete().eq('id', id) } catch { }
   }
 
@@ -109,11 +117,11 @@ export default function AdminSuppliersPage() {
         createdAt: new Date().toISOString()
       }])
 
-      alert("Supply confirmed and inventory updated!")
+      showToast('success', 'Supply confirmed and inventory updated!')
       setSupplyMod(null)
     } catch (err) {
       console.error(err)
-      alert("Failed to confirm supply.")
+      showToast('error', 'Failed to confirm supply.')
     } finally {
       setSaving(false)
     }

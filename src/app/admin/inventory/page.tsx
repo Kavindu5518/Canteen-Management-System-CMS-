@@ -4,11 +4,15 @@ import { supabase } from '@/lib/supabase'
 import { Search, Plus, AlertTriangle, Package, Edit2, Trash2, X, Loader2, TrendingUp, Truck } from 'lucide-react'
 import AdminBottomNav from '@/components/admin/AdminBottomNav'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/lib/toast'
+import { useConfirm } from '@/lib/confirm'
 import type { InventoryItem } from '@/types'
 
 const CATEGORIES = ['All', 'Grains', 'Protein', 'Dairy', 'Oils', 'Condiments', 'Beverages']
 
 export default function AdminInventoryPage() {
+  const { showToast } = useToast()
+  const { confirm } = useConfirm()
   const [items, setItems] = useState<InventoryItem[]>([])
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
@@ -53,7 +57,11 @@ export default function AdminInventoryPage() {
   }
 
   async function handleReorder(item: InventoryItem) {
-    if (!confirm(`Create a reorder request for ${item.name}?`)) return
+    const isConfirmed = await confirm({
+      title: 'Reorder Item',
+      message: `Create a reorder request for ${item.name}?`
+    })
+    if (!isConfirmed) return
     try {
       // Assuming reorder_requests table is created or will be.
       await supabase.from('reorder_requests').insert([{
@@ -64,10 +72,10 @@ export default function AdminInventoryPage() {
         status: 'pending',
         createdAt: new Date().toISOString()
       }])
-      alert("Reorder request sent to admin/suppliers.")
+      showToast('success', 'Reorder request sent to suppliers.')
     } catch (err) {
       console.error(err)
-      alert("Failed to create reorder request.")
+      showToast('error', 'Failed to create reorder request.')
     }
   }
 
@@ -89,13 +97,17 @@ export default function AdminInventoryPage() {
       }
     } catch (err: any) {
       console.error(err)
-      alert("Error saving: " + err.message)
+      showToast('error', 'Error saving: ' + err.message)
     }
     setSaving(false); setModal(false); setEditing(null)
   }
 
   async function del(id: string) {
-    if (!confirm('Delete this item?')) return
+    const isConfirmed = await confirm({
+      title: 'Delete Item',
+      message: 'Are you sure you want to permanently delete this inventory item?'
+    })
+    if (!isConfirmed) return
     try { await supabase.from('inventory').delete().eq('id', id) } catch { }
   }
 
@@ -128,7 +140,11 @@ export default function AdminInventoryPage() {
             </div>
           </div>
           <button onClick={async () => {
-            if (!confirm(`Create reorder requests for all ${lowStock.length} low-stock items?`)) return
+            const isConfirmed = await confirm({
+              title: 'Restock All Items',
+              message: `Create reorder requests for all ${lowStock.length} low-stock items?`
+            })
+            if (!isConfirmed) return
             for (const i of lowStock) {
               try {
                 await supabase.from('reorder_requests').insert([{
@@ -143,7 +159,7 @@ export default function AdminInventoryPage() {
                 console.error('Reorder request failed for', i.name, err)
               }
             }
-            alert("Reorder requests sent to admin/suppliers.")
+            showToast('success', 'Reorder requests sent to suppliers.')
           }}
             className="bg-red-500 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-red transition-all active:scale-95">
             Restock All

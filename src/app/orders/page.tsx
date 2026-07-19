@@ -7,6 +7,7 @@ import CustomerBottomNav from '@/components/customer/CustomerBottomNav'
 import FeedbackModal from '@/components/customer/FeedbackModal'
 import InvoiceModal from '@/components/customer/InvoiceModal'
 import { cn, formatPrice, formatTime } from '@/lib/utils'
+import { useToast } from '@/lib/toast'
 import type { Order, OrderStatus } from '@/types'
 import Link from 'next/link'
 
@@ -45,6 +46,7 @@ const DEMO_ORDERS: Order[] = [
 export default function OrdersPage() {
   const { userData } = useAuth()
   const [orders, setOrders] = useState<Order[]>([])
+  const { showToast } = useToast()
   const [tab, setTab] = useState<'active' | 'history'>('active')
   const [loading, setLoading] = useState(true)
   const [feedbackOrder, setFeedback] = useState<Order | null>(null)
@@ -105,18 +107,16 @@ export default function OrdersPage() {
     const diffMinutes = (now - orderTime) / (1000 * 60)
 
     if (diffMinutes > 5) {
-      alert("You can only cancel orders within 5 minutes of placing them.")
+      showToast('warning', 'Orders can only be cancelled within 5 minutes of placing.')
       return
     }
 
-    if (!confirm("Are you sure you want to cancel this order?")) return
-
     try {
       await supabase.from('orders').update({ status: 'cancelled' }).eq('id', orderId)
-      alert("Order cancelled successfully.")
+      showToast('success', 'Order cancelled successfully.')
     } catch (err) {
       console.error(err)
-      alert("Failed to cancel order.")
+      showToast('error', 'Failed to cancel order.')
     }
   }
 

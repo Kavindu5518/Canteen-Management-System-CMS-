@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { Search, Loader2 } from 'lucide-react'
 import AdminBottomNav from '@/components/admin/AdminBottomNav'
 import { cn, formatPrice, formatTime } from '@/lib/utils'
+import { useToast } from '@/lib/toast'
 import type { Order, OrderStatus } from '@/types'
 import CustomSelect from '@/components/ui/CustomSelect'
 
@@ -11,6 +12,7 @@ const STATUS_TABS: OrderStatus[] = ['pending', 'preparing', 'ready', 'delivered'
 const DEMO_ORDERS: Order[] = []
 
 export default function AdminOrdersPage() {
+  const { showToast } = useToast()
   const [orders, setOrders] = useState<Order[]>(DEMO_ORDERS)
   const [activeTab, setTab] = useState<OrderStatus>('pending')
   const [search, setSearch] = useState('')
@@ -63,7 +65,7 @@ export default function AdminOrdersPage() {
       console.log(">>> [AdminOrders] Successfully updated status to:", newStatus)
     } catch (err) {
       console.error(">>> [AdminOrders] Update error:", err)
-      alert("Error updating status: " + (err as Error).message)
+      showToast('error', 'Error updating status: ' + (err as Error).message)
     }
     setUpdating(null)
   }
