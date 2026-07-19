@@ -7,6 +7,7 @@ import {
   TrendingUp, LogOut, Loader2, Calendar, Camera, Check, Square
 } from 'lucide-react'
 import { cn, formatPrice, formatTime } from '@/lib/utils'
+import { useToast } from '@/lib/toast'
 import type { AttendanceRecord, Order, Employee, EmployeeTask } from '@/types'
 import { useRouter } from 'next/navigation'
 import { Scanner } from '@yudiel/react-qr-scanner'
@@ -15,6 +16,7 @@ import CustomerBottomNav from '@/components/customer/CustomerBottomNav'
 export default function EmployeeDashboard() {
   const { userData, supabaseUser, loading: authLoading } = useAuth()
   const router = useRouter()
+  const { showToast } = useToast()
   const [orders, setOrders] = useState<Order[]>([])
   const [attendance, setAttendance] = useState<AttendanceRecord | null>(null)
   const [employeeData, setEmpData] = useState<Employee | null>(null)
@@ -26,6 +28,7 @@ export default function EmployeeDashboard() {
   const [isScanned, setIsScanned] = useState(false)
   const [vCode, setVCode] = useState('')
   const [tasks, setTasks] = useState<EmployeeTask[]>([])
+  const [canteenQRCode, setCanteenQRCode] = useState(process.env.NEXT_PUBLIC_CANTEEN_QR_CODE || 'CANTEEN-CMS-2024')
 
   // Use local date (not UTC) to avoid IST midnight crossing bug
   const todayStr = (() => {
@@ -56,6 +59,13 @@ export default function EmployeeDashboard() {
     if (!supabaseUser) return
 
     const fetchData = async () => {
+      // 0. Fetch canteen QR code from settings DB
+      const { data: qrSetting } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'canteen_qr_code')
+        .single()
+      if (qrSetting?.value) setCanteenQRCode(qrSetting.value)
       // 1. Fetch Employee Details from employees table (wage, shift, etc.)
       const { data: empData } = await supabase
         .from('employees')
@@ -136,11 +146,11 @@ export default function EmployeeDashboard() {
 
   async function handleCheckIn() {
     if (!supabaseUser || !userData || !regNumber || !userCode) {
-      alert("Please enter both Registration Number and Security Code")
+      showToast('warning', 'Please enter both Registration Number and Security Code')
       return
     }
     if (userCode.toUpperCase() !== vCode) {
-      alert("Invalid Security Code. Please look at the canteen screen.")
+      showToast('error', 'Invalid Security Code. Please look at the canteen screen.')
       return
     }
     setActionLoading(true)
@@ -164,7 +174,7 @@ export default function EmployeeDashboard() {
       setUserCode('')
     } catch (err: any) {
       console.error('Check-in error:', err)
-      alert(`Failed to sign in: ${err?.message || 'Unknown error. Try again.'}`)
+      showToast('error', `Failed to sign in: ${err?.message || 'Unknown error. Try again.'}`)
     } finally {
       setActionLoading(false)
     }
@@ -190,7 +200,7 @@ export default function EmployeeDashboard() {
       setUserCode('')
     } catch (err) {
       console.error(err)
-      alert("Failed to sign out.")
+      showToast('error', 'Failed to sign out.')
     } finally {
       setActionLoading(false)
     }
@@ -213,7 +223,7 @@ export default function EmployeeDashboard() {
       }).eq('id', id)
     } catch (err) {
       console.error(err)
-      alert("Failed to update status")
+      showToast('error', 'Failed to update order status.')
     } finally {
       setActionLoading(false)
     }
@@ -447,7 +457,12 @@ export default function EmployeeDashboard() {
                     <Scanner
                       onScan={(result) => {
                         if (result && result.length > 0) {
-                          setIsScanned(true)
+                          const scanned = result[0]?.rawValue || ''
+                          if (scanned === canteenQRCode) {
+                            setIsScanned(true)
+                          } else {
+                            showToast('error', 'Invalid QR Code! Please scan the Canteen QR on the wall.')
+                          }
                         }
                       }}
                       components={{

@@ -4,10 +4,12 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { ArrowLeft, Save, User, Mail, Shield, Smartphone, Loader2 } from 'lucide-react'
+import { useToast } from '@/lib/toast'
 
 export default function EditProfilePage() {
   const router = useRouter()
   const { userData, supabaseUser } = useAuth()
+  const { showToast } = useToast()
 
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -47,11 +49,11 @@ export default function EditProfilePage() {
       
       if (dbErr) throw dbErr
 
-      alert('Profile updated successfully!')
+      showToast('success', 'Profile updated successfully!')
       router.back()
     } catch (error) {
       console.error('Error updating profile:', error)
-      alert('Failed to update profile. Please try again.')
+      showToast('error', 'Failed to update profile. Please try again.')
     } finally {
       setLoading(false)
     }

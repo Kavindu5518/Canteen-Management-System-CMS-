@@ -1,6 +1,7 @@
 'use client'
 import { X, Printer, Download, UtensilsCrossed, Loader2 } from 'lucide-react'
 import { cn, formatPrice, formatTime } from '@/lib/utils'
+import { useToast } from '@/lib/toast'
 import { toJpeg } from 'html-to-image'
 import { useState } from 'react'
 import type { Order } from '@/types'
@@ -11,6 +12,7 @@ interface InvoiceModalProps {
 }
 
 export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
+  const { showToast } = useToast()
   const [downloading, setDownloading] = useState(false)
 
   function handlePrint() {
@@ -54,7 +56,7 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
       link.click()
     } catch (err) {
       console.error('Download error:', err)
-      alert('Failed to generate full image. Please try the Print button instead.')
+      showToast('warning', 'Failed to generate image. Please use the Print button instead.')
     } finally {
       setDownloading(false)
     }

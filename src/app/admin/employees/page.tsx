@@ -4,11 +4,15 @@ import { supabase } from '@/lib/supabase'
 import { Search, Plus, Phone, Clock, X, Loader2, Edit2, Trash2, ClipboardList, UserCheck, AlertCircle } from 'lucide-react'
 import AdminBottomNav from '@/components/admin/AdminBottomNav'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/lib/toast'
+import { useConfirm } from '@/lib/confirm'
 import type { Employee, ShiftType, EmployeeTask } from '@/types'
 
 const DEMO: Employee[] = []
 
 export default function AdminEmployeesPage() {
+  const { showToast } = useToast()
+  const { confirm } = useConfirm()
   const [employees, setEmployees] = useState<Employee[]>(DEMO)
   const [unlinkedUsers, setUnlinkedUsers] = useState<any[]>([])
   const [search, setSearch] = useState('')
@@ -74,8 +78,17 @@ export default function AdminEmployeesPage() {
   }
 
   async function del(id: string) {
-    if (!confirm('Remove this employee?')) return
-    try { await supabase.from('employees').delete().eq('id', id) } catch { }
+    const isConfirmed = await confirm({
+      title: 'Remove Employee',
+      message: 'Are you sure you want to permanently remove this employee from the system?'
+    })
+    if (!isConfirmed) return
+    try {
+      await supabase.from('employees').delete().eq('id', id)
+      showToast('success', 'Employee removed successfully.')
+    } catch {
+      showToast('error', 'Failed to remove employee.')
+    }
   }
 
   async function save(data: Partial<Employee>) {

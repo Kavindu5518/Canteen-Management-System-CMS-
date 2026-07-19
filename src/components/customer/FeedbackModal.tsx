@@ -3,6 +3,7 @@ import { useState, useRef } from 'react'
 import { Star, X, Loader2, MessageSquare, Camera, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/lib/toast'
 import type { Order } from '@/types'
 
 const FEEDBACK_TAGS = ['Taste', 'Freshness', 'Portion', 'Value', 'Speed']
@@ -14,6 +15,7 @@ interface FeedbackModalProps {
 }
 
 export default function FeedbackModal({ order, onClose, onSuccess }: FeedbackModalProps) {
+  const { showToast } = useToast()
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState('')
   const [selectedTags, setTags] = useState<string[]>([])
@@ -95,7 +97,7 @@ export default function FeedbackModal({ order, onClose, onSuccess }: FeedbackMod
       onSuccess()
     } catch (err) {
       console.error("Error submitting feedback:", err)
-      alert("Failed to submit feedback. Please try again.")
+      showToast('error', 'Failed to submit feedback. Please try again.')
     } finally {
       setLoading(false)
     }

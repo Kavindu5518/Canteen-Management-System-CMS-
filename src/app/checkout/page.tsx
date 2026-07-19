@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import CustomerBottomNav from '@/components/customer/CustomerBottomNav'
 import { cn, formatPrice } from '@/lib/utils'
+import { useToast } from '@/lib/toast'
 import type { CartItem, DeliveryType, PaymentMethod } from '@/types'
 import { Scanner } from '@yudiel/react-qr-scanner'
 // 1. PayHere Hash import එක මෙතනට එනවා
@@ -15,6 +16,7 @@ import { generatePayHereHash } from '@/app/actions/payhere'
 
 export default function CheckoutPage() {
   const router = useRouter()
+  const { showToast } = useToast()
   const [cart, setCart] = useState<CartItem[]>([])
   const [deliveryType, setDelivery] = useState<DeliveryType>('self_pickup')
   const [deliveryAddress, setAddress] = useState('Block B, Room 402, Girls Hostel')
@@ -23,6 +25,8 @@ export default function CheckoutPage() {
   const [success, setSuccess] = useState(false)
   const [orderId, setOrderId] = useState('')
   const [qrScanned, setQrScanned] = useState(false)
+  const [showAddressModal, setShowAddressModal] = useState(false)
+  const [tempAddress, setTempAddress] = useState(deliveryAddress)
 
   useEffect(() => {
     try {
@@ -80,14 +84,14 @@ export default function CheckoutPage() {
         setSuccess(true);
       };
     } else {
-      alert("PayHere is not loaded. Please refresh the page.");
+      showToast('error', 'PayHere is not loaded. Please refresh the page.')
     }
   }
 
   async function placeOrder() {
     if (cart.length === 0) return
     if (paymentMethod === 'qr_scan' && !qrScanned) {
-      alert("Please scan the canteen's QR code first to complete payment.")
+      showToast('warning', "Please scan the canteen's QR code first to complete payment.")
       return
     }
     setPlacing(true)
@@ -158,7 +162,7 @@ export default function CheckoutPage() {
 
     } catch (e: any) {
       console.error("Order Place Error:", e)
-      alert("Failed to place order: " + e.message)
+      showToast('error', 'Failed to place order: ' + e.message)
     } finally {
       setPlacing(false)
     }
@@ -278,10 +282,10 @@ export default function CheckoutPage() {
               </div>
               <button
                 onClick={() => {
-                  const a = prompt('Enter delivery address:', deliveryAddress)
-                  if (a) setAddress(a)
+                  setTempAddress(deliveryAddress)
+                  setShowAddressModal(true)
                 }}
-                className="text-sm text-primary font-bold"
+                className="text-sm text-primary font-bold active:scale-95 transition-transform"
               >
                 Edit
               </button>
@@ -400,6 +404,47 @@ export default function CheckoutPage() {
       </div>
 
       <CustomerBottomNav />
+
+      {/* Custom Address Editing Modal */}
+      {showAddressModal && (
+        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="p-8">
+              <h3 className="text-lg font-black text-gray-900 leading-tight">Delivery Address</h3>
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Specify Hostel Location</p>
+              
+              <div className="mt-6">
+                <textarea
+                  value={tempAddress}
+                  onChange={(e) => setTempAddress(e.target.value)}
+                  placeholder="e.g. Block B, Room 402, Girls Hostel"
+                  className="w-full h-24 p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-semibold text-gray-800 focus:outline-none focus:border-primary/40 resize-none transition-all"
+                />
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => setShowAddressModal(false)}
+                  className="flex-1 py-4 border border-gray-100 hover:bg-gray-50 rounded-2xl font-black uppercase text-[11px] tracking-widest text-gray-400 transition-all active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (tempAddress.trim()) {
+                      setAddress(tempAddress.trim())
+                      setShowAddressModal(false)
+                    }
+                  }}
+                  className="flex-1 py-4 bg-gray-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-gray-800 transition-all active:scale-95 shadow-lg shadow-gray-950/10"
+                >
+                  Save Address
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

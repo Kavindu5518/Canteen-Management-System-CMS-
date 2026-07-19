@@ -4,11 +4,13 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import { ArrowLeft, BellRing, MessageSquare, Mail, Smartphone, Save, Loader2 } from 'lucide-react'
+import { useToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 
 export default function NotificationsPage() {
   const router = useRouter()
   const { userData, supabaseUser } = useAuth()
+  const { showToast } = useToast()
 
   const [orderAlerts, setOrderAlerts] = useState(true)
   const [promoAlerts, setPromoAlerts] = useState(false)
@@ -44,11 +46,11 @@ export default function NotificationsPage() {
       })
       if (error) throw error
       
-      alert('Preferences saved successfully!')
+      showToast('success', 'Notification preferences saved.')
       router.back()
     } catch (error) {
       console.error('Error saving preferences:', error)
-      alert('Failed to save preferences. Please try again.')
+      showToast('error', 'Failed to save preferences. Please try again.')
     } finally {
       setLoading(false)
     }

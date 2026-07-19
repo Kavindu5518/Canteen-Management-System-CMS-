@@ -2,8 +2,10 @@ import type { Metadata } from 'next'
 import { Nunito } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/lib/AuthContext'
+import { ToastProvider } from '@/lib/toast'
+import { ConfirmProvider } from '@/lib/confirm'
 import RouteGuard from '@/components/RouteGuard'
-import Script from 'next/script' // 1. Script component  import 
+import Script from 'next/script'
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -29,13 +31,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={nunito.className}>
         <AuthProvider>
-          <RouteGuard>
-            <div className="min-h-screen bg-gray-100 flex justify-center">
-              <main className="mobile-container w-full shadow-2xl">
-                {children}
-              </main>
-            </div>
-          </RouteGuard>
+          <ToastProvider>
+            <ConfirmProvider>
+              <RouteGuard>
+                <div className="min-h-screen bg-gray-100 flex justify-center">
+                  <main className="mobile-container w-full shadow-2xl">
+                    {children}
+                  </main>
+                </div>
+              </RouteGuard>
+            </ConfirmProvider>
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

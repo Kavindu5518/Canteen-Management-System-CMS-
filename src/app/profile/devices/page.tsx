@@ -3,9 +3,13 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, MonitorSmartphone, Smartphone, CheckCircle2, LogOut, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/lib/toast'
+import { useConfirm } from '@/lib/confirm'
 
 export default function DevicesPage() {
   const router = useRouter()
+  const { showToast } = useToast()
+  const { confirm } = useConfirm()
   const [deviceInfo, setDeviceInfo] = useState('Unknown Device')
   const [loading, setLoading] = useState(false)
   const [loggedOutOthers, setLoggedOutOthers] = useState(false)
@@ -30,24 +34,26 @@ export default function DevicesPage() {
   }, [])
 
   async function handleLogoutOthers() {
-    if (!confirm('Are you sure you want to log out from all other devices?')) return
-    
     setLoading(true)
     try {
       const { error } = await supabase.auth.signOut({ scope: 'others' })
       if (error) throw error
       setLoggedOutOthers(true)
-      alert('Successfully logged out from all other devices.')
+      showToast('success', 'Logged out from all other devices successfully.')
     } catch (err) {
       console.error(err)
-      alert('Error logging out others. Please try again.')
+      showToast('error', 'Error logging out. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   async function handleLogoutCurrent() {
-    if (!confirm('Log out from this device?')) return
+    const isConfirmed = await confirm({
+      title: 'Log Out',
+      message: 'Are you sure you want to log out from this device?'
+    })
+    if (!isConfirmed) return
     await supabase.auth.signOut()
     router.push('/login')
   }

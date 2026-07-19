@@ -7,6 +7,8 @@ import {
 } from 'lucide-react'
 import AdminBottomNav from '@/components/admin/AdminBottomNav'
 import { cn, formatPrice } from '@/lib/utils'
+import { useToast } from '@/lib/toast'
+import { useConfirm } from '@/lib/confirm'
 import type { MenuItem, FoodCategory } from '@/types'
 
 const DEMO_ITEMS: MenuItem[] = []
@@ -14,6 +16,8 @@ const CATEGORIES: FoodCategory[] = ['breakfast', 'lunch', 'dinner', 'snacks', 'b
 type ModalMode = 'add' | 'edit' | null
 
 export default function AdminMenuPage() {
+  const { showToast } = useToast()
+  const { confirm } = useConfirm()
   const [items, setItems] = useState<MenuItem[]>(DEMO_ITEMS)
   const [search, setSearch] = useState('')
   const [modal, setModal] = useState<ModalMode>(null)
@@ -82,12 +86,18 @@ export default function AdminMenuPage() {
   }
 
   async function deleteItem(id: string) {
-    if (!confirm('Delete this menu item?')) return
+    const isConfirmed = await confirm({
+      title: 'Delete Menu Item',
+      message: 'Are you sure you want to permanently delete this menu item?'
+    })
+    if (!isConfirmed) return
     setItems(prev => prev.filter(i => i.id !== id))
     try {
       await supabase.from('menu_items').delete().eq('id', id)
+      showToast('success', 'Menu item deleted successfully.')
     } catch (err) {
       console.error("Error deleting item:", err)
+      showToast('error', 'Failed to delete menu item.')
     }
   }
 
@@ -142,7 +152,7 @@ export default function AdminMenuPage() {
       }
     } catch (err: any) {
       console.error(">>> [DB ERROR]:", err)
-      alert("Error saving: " + err.message)
+      showToast('error', 'Error saving: ' + err.message)
     } finally {
       setLoading(false)
       setModal(null)
