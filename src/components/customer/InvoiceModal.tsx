@@ -127,10 +127,12 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
                 <span className="text-gray-900 font-bold">{formatPrice(order.deliveryFee)}</span>
               </div>
             )}
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400 font-medium">Tax (GST 5%)</span>
-              <span className="text-gray-900 font-bold">{formatPrice(order.tax)}</span>
-            </div>
+            {order.tax > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400 font-medium">Tax</span>
+                <span className="text-gray-900 font-bold">{formatPrice(order.tax)}</span>
+              </div>
+            )}
             <div className="flex justify-between pt-4 border-t border-gray-100">
               <span className="text-lg font-black text-gray-900">Total Amount</span>
               <span className="text-xl font-black text-primary">{formatPrice(order.total)}</span>
