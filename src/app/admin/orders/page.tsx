@@ -57,17 +57,29 @@ export default function AdminOrdersPage() {
   const countFor = (s: OrderStatus) => orders.filter(o => o.status === s).length
 
   async function updateStatus(order: Order, newStatus: OrderStatus) {
+    if (order.status === newStatus) return
+    const prevStatus = order.status
     setUpdating(order.id)
+
+    // 1. Optimistic Update (Instant 0ms feedback)
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: newStatus } : o))
+    showToast('success', `Order ${order.orderNumber} status changed to ${newStatus}`)
+
     try {
-      await supabase.from('orders').update({
+      const { error } = await supabase.from('orders').update({
         status: newStatus,
+        updatedAt: new Date().toISOString()
       }).eq('id', order.id)
-      console.log(">>> [AdminOrders] Successfully updated status to:", newStatus)
+      
+      if (error) throw error
     } catch (err) {
       console.error(">>> [AdminOrders] Update error:", err)
+      // Rollback on error
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: prevStatus } : o))
       showToast('error', 'Error updating status: ' + (err as Error).message)
+    } finally {
+      setUpdating(null)
     }
-    setUpdating(null)
   }
 
   const statusColors: Record<string, string> = {

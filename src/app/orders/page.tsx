@@ -82,7 +82,23 @@ export default function OrdersPage() {
 
       subscription = supabase
         .channel(`orders_${user.id}_${Date.now()}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload: any) => {
+          if (payload?.new) {
+            const num = payload.new.orderNumber || 'your order'
+            const status = payload.new.status
+            const statusMsgs: Record<string, string> = {
+              preparing: `👨‍🍳 Order ${num} is being prepared!`,
+              ready: `🎉 Order ${num} is Ready for pickup!`,
+              delivered: `✅ Order ${num} has been delivered!`,
+              cancelled: `❌ Order ${num} was cancelled.`
+            }
+            if (statusMsgs[status]) {
+              showToast(status === 'ready' ? 'success' : 'info', statusMsgs[status])
+            }
+          }
+          getInitial()
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => {
           getInitial()
         })
         .subscribe()
