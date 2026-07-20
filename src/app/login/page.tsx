@@ -41,9 +41,9 @@ export default function LoginPage() {
   // Role-based redirection
   useEffect(() => {
     if (userData && !authLoading) {
-      if (userData.role === 'admin') router.push('/admin/dashboard')
-      else if (userData.role === 'employee') router.push('/employee/dashboard')
-      else router.push('/menu')
+      if (userData.role === 'admin') router.replace('/admin/dashboard')
+      else if (userData.role === 'employee') router.replace('/employee/dashboard')
+      else router.replace('/menu')
     }
   }, [userData, authLoading, router])
 
@@ -72,9 +72,9 @@ export default function LoginPage() {
             .single()
 
           if (!dbError && u) {
-            if (u.role === 'admin') router.push('/admin/dashboard')
-            else if (u.role === 'employee') router.push('/employee/dashboard')
-            else router.push('/menu')
+            if (u.role === 'admin') router.replace('/admin/dashboard')
+            else if (u.role === 'employee') router.replace('/employee/dashboard')
+            else router.replace('/menu')
           }
         }
       } catch (err: any) {

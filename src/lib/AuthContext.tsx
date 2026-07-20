@@ -34,12 +34,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('uid', uid)
         .single();
       
-      if (data) {
+      if (data && !error) {
         setUserData(data as User);
       } else {
         setUserData({
           uid: uid,
-          name: fullName || 'User',
+          name: fullName || email?.split('@')[0] || 'User',
           email: email || '',
           role: 'student',
           createdAt: new Date()
@@ -47,6 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error("AuthContext Error:", err);
+      setUserData({
+        uid: uid,
+        name: fullName || email?.split('@')[0] || 'User',
+        email: email || '',
+        role: 'student',
+        createdAt: new Date()
+      } as User);
     } finally {
       setLoading(false);
     }
