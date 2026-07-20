@@ -18,7 +18,7 @@ export default function EmployeeDashboard() {
   const router = useRouter()
   const { showToast } = useToast()
   const [orders, setOrders] = useState<Order[]>([])
-  const [attendance, setAttendance] = useState<AttendanceRecord | null>(null)
+  const [todayShifts, setTodayShifts] = useState<AttendanceRecord[]>([])
   const [employeeData, setEmpData] = useState<Employee | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
@@ -78,28 +78,25 @@ export default function EmployeeDashboard() {
         currentEmpData = empData[0] as Employee
       }
 
-      // 2. Fetch Today's Attendance
-      // Strategy: if we have an employees record, query by employeeId.
-      // Otherwise fallback to query by employeeName + date (handles null employeeId inserts).
+      // 2. Fetch Today's Attendance (all shifts for today)
       if (currentEmpData) {
         const { data: attData } = await supabase
           .from('attendance')
           .select('*')
           .eq('employeeId', currentEmpData.id)
           .eq('date', todayStr)
-          .limit(1)
-        setAttendance(attData && attData.length > 0 ? (attData[0] as AttendanceRecord) : null)
+          .order('checkIn', { ascending: false })
+        setTodayShifts((attData as AttendanceRecord[]) || [])
       } else if (userData?.name) {
-        // Fallback: find by name + date (when employeeId was stored as null)
         const { data: attData } = await supabase
           .from('attendance')
           .select('*')
           .eq('employeeName', userData.name)
           .eq('date', todayStr)
-          .limit(1)
-        setAttendance(attData && attData.length > 0 ? (attData[0] as AttendanceRecord) : null)
+          .order('checkIn', { ascending: false })
+        setTodayShifts((attData as AttendanceRecord[]) || [])
       } else {
-        setAttendance(null)
+        setTodayShifts([])
       }
 
       // 3. Fetch Active Orders
@@ -168,10 +165,11 @@ export default function EmployeeDashboard() {
       }]).select().single()
 
       if (error) throw error
-      setAttendance(data as AttendanceRecord)
+      setTodayShifts(prev => [data as AttendanceRecord, ...prev])
       setShowScanner(false)
       setIsScanned(false)
       setUserCode('')
+      showToast('success', 'Shift started successfully!')
     } catch (err: any) {
       console.error('Check-in error:', err)
       showToast('error', `Failed to sign in: ${err?.message || 'Unknown error. Try again.'}`)
@@ -181,23 +179,25 @@ export default function EmployeeDashboard() {
   }
 
   async function handleCheckOut() {
-    if (!attendance) return
+    const activeShift = todayShifts.find(s => !s.checkOut)
+    if (!activeShift) return
     setActionLoading(true)
     try {
-      const checkInTime = new Date(attendance.checkIn)
+      const checkInTime = new Date(activeShift.checkIn)
       const checkOutTime = new Date()
       const diffHrs = (checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60 * 60)
 
       const { data, error } = await supabase.from('attendance').update({
         checkOut: checkOutTime.toISOString(),
         hoursWorked: parseFloat(diffHrs.toFixed(2))
-      }).eq('id', attendance.id).select().single()
+      }).eq('id', activeShift.id).select().single()
 
       if (error) throw error
-      setAttendance(data as AttendanceRecord)
+      setTodayShifts(prev => prev.map(s => s.id === activeShift.id ? (data as AttendanceRecord) : s))
       setShowScanner(false)
       setIsScanned(false)
       setUserCode('')
+      showToast('success', 'Shift ended successfully!')
     } catch (err) {
       console.error(err)
       showToast('error', 'Failed to sign out.')
@@ -237,8 +237,12 @@ export default function EmployeeDashboard() {
     )
   }
 
-  const isCheckedIn = !!attendance?.checkIn
-  const isCheckedOut = !!attendance?.checkOut
+  const activeShift = todayShifts.find(s => !s.checkOut)
+  const latestShift = todayShifts[0] || null
+  const isCheckedIn = !!activeShift
+  const totalHoursWorkedToday = parseFloat(
+    todayShifts.reduce((acc, s) => acc + (s.hoursWorked || 0), 0).toFixed(2)
+  )
 
   return (
     <div className="bg-gray-50 pb-20 min-h-screen">
@@ -264,38 +268,43 @@ export default function EmployeeDashboard() {
               <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center">
                 <Calendar size={20} className="text-primary" />
               </div>
-              <div className="font-black text-gray-900">Today's Shift</div>
+              <div>
+                <div className="font-black text-gray-900">Today's Shift</div>
+                {todayShifts.length > 0 && (
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                    {todayShifts.length} shift{todayShifts.length > 1 ? 's' : ''} recorded
+                  </p>
+                )}
+              </div>
             </div>
             <span className={cn('text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest',
-              isCheckedOut ? 'bg-gray-100 text-gray-400' : isCheckedIn ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600')}>
-              {isCheckedOut ? 'Completed' : isCheckedIn ? 'On Duty' : 'Not Started'}
+              isCheckedIn ? 'bg-green-100 text-green-600' : todayShifts.length > 0 ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600')}>
+              {isCheckedIn ? 'On Duty' : todayShifts.length > 0 ? 'Shift Completed' : 'Not Started'}
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-gray-50 rounded-3xl p-4 flex flex-col items-center">
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Check In</p>
-              <p className="text-base font-black text-gray-900">{attendance?.checkIn ? formatTime(new Date(attendance.checkIn)) : '--:--'}</p>
+              <p className="text-base font-black text-gray-900">
+                {activeShift ? formatTime(new Date(activeShift.checkIn)) : (latestShift ? formatTime(new Date(latestShift.checkIn)) : '--:--')}
+              </p>
             </div>
             <div className="bg-gray-50 rounded-3xl p-4 flex flex-col items-center">
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Check Out</p>
-              <p className="text-base font-black text-gray-900">{attendance?.checkOut ? formatTime(new Date(attendance.checkOut)) : '--:--'}</p>
+              <p className="text-base font-black text-gray-900">
+                {activeShift ? '--:--' : (latestShift?.checkOut ? formatTime(new Date(latestShift.checkOut)) : '--:--')}
+              </p>
             </div>
           </div>
 
-          {!isCheckedOut ? (
-            <button onClick={openScanner} disabled={actionLoading}
-              className={cn('w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg',
-                isCheckedIn ? 'bg-gray-900 text-white' : 'bg-primary text-white shadow-primary')}>
-              {actionLoading ? <Loader2 className="animate-spin" size={20} /> : (
-                <>{isCheckedIn ? <CheckCircle2 size={20} /> : <QrCode size={20} />} {isCheckedIn ? 'End Shift' : 'Start Shift'}</>
-              )}
-            </button>
-          ) : (
-            <div className="text-center py-2">
-              <p className="text-sm font-bold text-gray-400 tracking-tight">Shift ended. Total: <span className="text-gray-900">{attendance?.hoursWorked} hrs</span></p>
-            </div>
-          )}
+          <button onClick={openScanner} disabled={actionLoading}
+            className={cn('w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg',
+              isCheckedIn ? 'bg-gray-900 text-white' : 'bg-primary text-white shadow-primary')}>
+            {actionLoading ? <Loader2 className="animate-spin" size={20} /> : (
+              <>{isCheckedIn ? <CheckCircle2 size={20} /> : <QrCode size={20} />} {isCheckedIn ? 'End Shift' : todayShifts.length > 0 ? 'Start New Shift' : 'Start Shift'}</>
+            )}
+          </button>
         </div>
 
         {/* My Earnings Card */}
@@ -310,12 +319,12 @@ export default function EmployeeDashboard() {
           <div className="flex flex-col relative z-10">
             <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2">Estimated Wage</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-white text-3xl font-black">{formatPrice((attendance?.hoursWorked ?? 0) * ((employeeData?.dailyWage ?? 1200) / 8))}</span>
+              <span className="text-white text-3xl font-black">{formatPrice(totalHoursWorkedToday * ((employeeData?.dailyWage ?? 1200) / 8))}</span>
               <span className="text-primary text-[10px] font-black uppercase">Today</span>
             </div>
             <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center text-[10px] uppercase font-black tracking-widest">
               <span className="text-gray-500">Rate: {formatPrice(employeeData?.dailyWage ?? 1200)}/day</span>
-              <span className="text-primary animate-pulse">{attendance?.hoursWorked ?? 0} Hours</span>
+              <span className="text-primary animate-pulse">{totalHoursWorkedToday} Hours</span>
             </div>
           </div>
         </div>
