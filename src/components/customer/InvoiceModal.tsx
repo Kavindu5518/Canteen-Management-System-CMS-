@@ -1,5 +1,5 @@
 'use client'
-import { X, Printer, Download, UtensilsCrossed, Loader2 } from 'lucide-react'
+import { X, Download, UtensilsCrossed, Loader2 } from 'lucide-react'
 import { cn, formatPrice, formatTime } from '@/lib/utils'
 import { useToast } from '@/lib/toast'
 import { toJpeg } from 'html-to-image'
@@ -14,15 +14,6 @@ interface InvoiceModalProps {
 export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
   const { showToast } = useToast()
   const [downloading, setDownloading] = useState(false)
-
-  function handlePrint() {
-    const originalTitle = document.title
-    document.title = `Invoice_${order.orderNumber.replace('#', '')}`
-    window.print()
-    setTimeout(() => {
-      document.title = originalTitle
-    }, 1000)
-  }
 
   async function handleDownloadJPG() {
     const element = document.getElementById('invoice-content')
@@ -43,7 +34,7 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
       const dataUrl = await toJpeg(element, {
         quality: 0.95,
         backgroundColor: '#ffffff',
-        pixelRatio: 3, // Even higher quality
+        pixelRatio: 3, // High resolution image
       })
 
       // Restore original styles
@@ -54,58 +45,26 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
       link.download = `Invoice_${order.orderNumber.replace('#', '')}.jpg`
       link.href = dataUrl
       link.click()
+      showToast('success', 'Receipt downloaded to gallery!')
     } catch (err) {
       console.error('Download error:', err)
-      showToast('warning', 'Failed to generate image. Please use the Print button instead.')
+      showToast('error', 'Failed to generate image. Please try again.')
     } finally {
       setDownloading(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm print:p-0 print:bg-white">
-      {/* CSS to hide everything else during print */}
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #invoice-modal-container, #invoice-modal-container * {
-            visibility: visible;
-          }
-          #invoice-modal-container {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            box-shadow: none !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
-
-      <div id="invoice-modal-container" className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200 print:rounded-none print:shadow-none">
+    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+      <div id="invoice-modal-container" className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
         
         {/* Actions Header */}
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between no-print">
-          <div className="flex gap-2">
-            <button onClick={handlePrint} className="w-10 h-10 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-gray-600 hover:text-primary transition-colors" title="Print/Save as PDF">
-              <Printer size={18}/>
-            </button>
-            <button 
-              onClick={handleDownloadJPG} 
-              disabled={downloading}
-              className="w-10 h-10 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-gray-600 hover:text-primary transition-colors disabled:opacity-50" 
-              title="Download JPG Image"
-            >
-              {downloading ? <Loader2 size={18} className="animate-spin text-primary" /> : <Download size={18}/>}
-            </button>
+        <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-extrabold text-gray-900">Order Invoice</span>
+            <span className="text-xs font-bold text-gray-400 bg-gray-200/60 px-2 py-0.5 rounded-md">{order.orderNumber}</span>
           </div>
-          <button onClick={onClose} className="w-10 h-10 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
+          <button onClick={onClose} className="w-9 h-9 bg-white rounded-xl shadow-sm border border-gray-100 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
             <X size={18}/>
           </button>
         </div>
@@ -183,12 +142,28 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
             <p className="text-[10px] text-gray-400 font-medium italic">
               Thank you for your order! This is a computer generated invoice.
             </p>
-            <div className="flex items-center justify-center gap-2 mt-4 opacity-30 no-print">
+            <div className="flex items-center justify-center gap-2 mt-4 opacity-30">
               <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"/>
               <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"/>
               <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"/>
             </div>
           </div>
+        </div>
+
+        {/* Modal Action Footer */}
+        <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center gap-3">
+          <button
+            onClick={handleDownloadJPG}
+            disabled={downloading}
+            className="w-full py-3.5 bg-primary text-white font-extrabold text-sm rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-50"
+          >
+            {downloading ? (
+              <Loader2 size={18} className="animate-spin text-white" />
+            ) : (
+              <Download size={18} />
+            )}
+            <span>{downloading ? 'Generating Image...' : 'Download Receipt (JPG)'}</span>
+          </button>
         </div>
       </div>
     </div>
