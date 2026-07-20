@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
-import { Package, Users, Truck, TrendingUp, ClipboardList, AlertTriangle, Bell, LogOut, BarChart3, X, CheckCircle2, MessageSquare, Clock, ShieldCheck, Loader2, QrCode, Download, RefreshCw } from 'lucide-react'
+import { Package, Users, Truck, TrendingUp, ClipboardList, AlertTriangle, Bell, LogOut, BarChart3, X, CheckCircle2, MessageSquare, Clock, ShieldCheck, Loader2, QrCode, Download, RefreshCw, Save } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import AdminBottomNav from '@/components/admin/AdminBottomNav'
