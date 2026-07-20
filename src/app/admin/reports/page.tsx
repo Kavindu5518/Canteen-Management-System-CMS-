@@ -131,30 +131,54 @@ export default function AdminReportsPage() {
    return (
       <div className="bg-gray-50 min-h-screen pb-20">
 
-         {/* Header */}
-         <div className="admin-header h-32 flex-col !items-start !justify-center gap-4">
-            <div className="flex items-center justify-between w-full">
+         {/* ── Premium Header — White ── */}
+         <div className="relative bg-white border-b border-gray-100 overflow-hidden sticky top-0 z-40">
+            {/* Very subtle warm gradient tint */}
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.04] via-transparent to-blue-500/[0.03] pointer-events-none" />
+
+            {/* Top row: title + export */}
+            <div className="relative z-10 px-5 pt-12 pb-3 flex items-center justify-between gap-3">
                <div>
-                  <h1 className="text-xl font-black text-gray-900 tracking-tight">System Reports</h1>
-                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">Analytics & Performance Logs</p>
+                  <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none">System Reports</h1>
+                  <p className="text-gray-400 text-[10px] font-semibold mt-1">Analytics &amp; Performance Logs</p>
                </div>
-               <button onClick={handleExportCSV} className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all">
-                  <Download size={16} /> Export
+               <button
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all shrink-0"
+               >
+                  <Download size={13} />
+                  Export
                </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-4 border-b border-gray-100">
-               {(['sales', 'attendance', 'inventory'] as const).map(tab => (
-                  <button key={tab} onClick={() => setActiveTab(tab)}
-                     className={cn('pb-4 px-2 text-[10px] sm:text-xs font-black capitalize transition-all relative',
-                        activeTab === tab ? 'text-primary' : 'text-gray-400 font-bold uppercase tracking-widest')}>
-                     {tab} Analytics
-                     {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />}
-                  </button>
-               ))}
+            {/* Tab switcher — pill inside track */}
+            <div className="relative z-10 px-5 pb-4 pt-1">
+               <div className="flex bg-gray-100 rounded-2xl p-1 gap-1">
+                  {(['sales', 'attendance', 'inventory'] as const).map(tab => {
+                     const icons = { sales: TrendingUp, attendance: Users, inventory: BarChart3 }
+                     const labels = { sales: 'Sales', attendance: 'Attendance', inventory: 'Inventory' }
+                     const Icon = icons[tab]
+                     return (
+                        <button
+                           key={tab}
+                           onClick={() => setActiveTab(tab)}
+                           className={cn(
+                              'flex-1 flex items-center justify-center gap-1.5 py-2.5 px-1 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-200',
+                              activeTab === tab
+                                 ? 'bg-white text-gray-900 shadow-md shadow-gray-200'
+                                 : 'text-gray-400 hover:text-gray-600'
+                           )}
+                        >
+                           <Icon size={12} />
+                           {labels[tab]}
+                        </button>
+                     )
+                  })}
+               </div>
             </div>
          </div>
+
+
 
          <div className="p-5">
             {activeTab === 'sales' ? (
