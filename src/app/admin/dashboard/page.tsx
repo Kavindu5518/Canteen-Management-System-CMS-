@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
-import { Package, Users, Truck, UtensilsCrossed, TrendingUp, ClipboardList, AlertTriangle, Bell, LogOut, BarChart3, X, CheckCircle2, MessageSquare, Clock, ShieldCheck, Save, Loader2, QrCode, Printer } from 'lucide-react'
-import { QRCodeSVG } from 'qrcode.react'
+import { Package, Users, Truck, TrendingUp, ClipboardList, AlertTriangle, Bell, LogOut, BarChart3, X, CheckCircle2, MessageSquare, Clock, ShieldCheck, Loader2, QrCode, Download, RefreshCw, Save } from 'lucide-react'
+import { QRCodeCanvas } from 'qrcode.react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import AdminBottomNav from '@/components/admin/AdminBottomNav'
 import { cn, formatPrice } from '@/lib/utils'
@@ -26,6 +26,7 @@ const QUICK_ACTIONS = [
 export default function AdminDashboard() {
   const { userData } = useAuth()
   const router = useRouter()
+  const { showToast } = useToast()
   const [todaySales, setTodaySales] = useState(0)
   const [totalOrders, setTotalOrders] = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
@@ -42,11 +43,47 @@ export default function AdminDashboard() {
   const [empRegCode, setEmpRegCode] = useState('EMP2024')
   const [canteenQR, setCanteenQR] = useState(process.env.NEXT_PUBLIC_CANTEEN_QR_CODE || 'CANTEEN-CMS-2024')
   const [qrRefreshing, setQrRefreshing] = useState(false)
-  const [toast, setToast] = useState<{ type: 'success' | 'error', message: string } | null>(null)
 
-  const showToast = (type: 'success' | 'error', message: string) => {
-    setToast({ type, message })
-    setTimeout(() => setToast(null), 4000)
+  function handleDownloadQR() {
+    // Find canvas rendered by QRCodeCanvas
+    const canvas = document.querySelector('#canteen-qr-canvas canvas') as HTMLCanvasElement
+    if (!canvas) {
+      showToast('error', 'QR canvas not found. Please try again.')
+      return
+    }
+
+    // Create a padded, branded canvas
+    const padding = 40
+    const size = canvas.width
+    const branded = document.createElement('canvas')
+    branded.width = size + padding * 2
+    branded.height = size + padding * 2 + 60
+    const ctx = branded.getContext('2d')!
+
+    // White background
+    ctx.fillStyle = '#ffffff'
+    ctx.roundRect(0, 0, branded.width, branded.height, 24)
+    ctx.fill()
+
+    // Draw QR
+    ctx.drawImage(canvas, padding, padding + 30)
+
+    // Title text
+    ctx.fillStyle = '#111111'
+    ctx.font = 'bold 16px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('Campus Canteen QR', branded.width / 2, padding + 16)
+
+    // Subtitle
+    ctx.fillStyle = '#888888'
+    ctx.font = '12px sans-serif'
+    ctx.fillText('Scan to clock in / out', branded.width / 2, branded.height - 16)
+
+    const link = document.createElement('a')
+    link.download = 'canteen-qr-code.png'
+    link.href = branded.toDataURL('image/png')
+    link.click()
+    showToast('success', 'QR Code downloaded as PNG!')
   }
 
   useEffect(() => {
@@ -226,110 +263,90 @@ export default function AdminDashboard() {
         </Link>
       </div>
 
-      {/* Canteen QR Code Card */}
+      {/* Canteen QR Code Card — Fully Responsive */}
       <div className="mx-5 mb-4">
         <div className="bg-gray-900 rounded-[32px] overflow-hidden shadow-2xl relative">
           {/* Decorative blobs */}
-          <div className="absolute top-0 right-0 w-40 h-40 bg-primary/20 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/10 rounded-full -ml-16 -mb-16 blur-2xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-52 h-52 bg-primary/20 rounded-full -mr-24 -mt-24 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/10 rounded-full -ml-20 -mb-20 blur-2xl pointer-events-none" />
 
-          {/* Header */}
-          <div className="relative z-10 px-6 pt-6 pb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                <QrCode size={20} className="text-primary" />
+          {/* Header row */}
+          <div className="relative z-10 px-5 pt-5 pb-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 shrink-0 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                <QrCode size={18} className="text-primary" />
               </div>
-              <div>
-                <p className="text-white font-black text-sm tracking-tight">Attendance QR Code</p>
+              <div className="min-w-0">
+                <p className="text-white font-black text-sm tracking-tight truncate">Attendance QR Code</p>
                 <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">Staff Shift Access</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Refresh Button */}
-              <button
-                onClick={async () => {
-                  setQrRefreshing(true)
-                  try {
-                    const newCode = 'CANTEEN-' + Math.random().toString(36).substring(2, 8).toUpperCase()
-                    const { error } = await supabase
-                      .from('settings')
-                      .upsert({ key: 'canteen_qr_code', value: newCode }, { onConflict: 'key' })
-                    if (!error) {
-                      setCanteenQR(newCode)
-                      showToast('success', 'QR Code regenerated. Print the new QR and replace the one on the wall.')
-                    } else {
-                      showToast('error', 'Failed to regenerate QR: ' + error.message)
-                    }
-                  } finally {
-                    setQrRefreshing(false)
+          </div>
+
+          {/* Action Buttons Row */}
+          <div className="relative z-10 px-5 pb-4 flex items-center gap-2">
+            {/* Regenerate Button */}
+            <button
+              onClick={async () => {
+                setQrRefreshing(true)
+                try {
+                  const newCode = 'CANTEEN-' + Math.random().toString(36).substring(2, 8).toUpperCase()
+                  const { error } = await supabase
+                    .from('settings')
+                    .upsert({ key: 'canteen_qr_code', value: newCode }, { onConflict: 'key' })
+                  if (!error) {
+                    setCanteenQR(newCode)
+                    showToast('success', 'QR regenerated! Download and replace the one on the wall.')
+                  } else {
+                    showToast('error', 'Failed to regenerate: ' + error.message)
                   }
-                }}
-                disabled={qrRefreshing}
-                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/15 text-white text-[10px] font-black uppercase tracking-widest px-3 py-2.5 rounded-xl active:scale-95 transition-all disabled:opacity-40 border border-white/10"
-              >
-                {qrRefreshing
-                  ? <Loader2 size={12} className="animate-spin" />
-                  : <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                } finally {
+                  setQrRefreshing(false)
                 }
-                Regenerate
-              </button>
-              {/* Print Button */}
-              <button
-                onClick={() => {
-                  const printWin = window.open('', '_blank')
-                  if (printWin) {
-                    const svgEl = document.getElementById('canteen-qr-svg')?.querySelector('svg')
-                    const svgHTML = svgEl?.outerHTML || ''
-                    printWin.document.write(`
-                      <html><head><title>Canteen QR</title></head>
-                      <body style="margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#fff;font-family:'Segoe UI',sans-serif;gap:20px;">
-                        <div style="border:2px solid #eee;border-radius:24px;padding:32px;display:flex;flex-direction:column;align-items:center;gap:16px;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
-                          <p style="font-size:11px;color:#aaa;font-weight:800;text-transform:uppercase;letter-spacing:0.15em;margin:0;">Campus Canteen</p>
-                          ${svgHTML}
-                          <div style="text-align:center;">
-                            <p style="font-size:14px;font-weight:800;color:#111;margin:0 0 4px;">Scan to Clock In / Out</p>
-                            <p style="font-size:11px;color:#aaa;margin:0;">Use the Staff Portal app to scan</p>
-                          </div>
-                        </div>
-                        <script>window.onload=function(){window.print();window.close();}<\/script>
-                      </body></html>
-                    `)
-                    printWin.document.close()
-                  }
-                }}
-                className="flex items-center gap-2 bg-primary text-white text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl active:scale-95 transition-all shadow-lg shadow-primary/30"
-              >
-                <Printer size={13} />
-                Print
-              </button>
-            </div>
+              }}
+              disabled={qrRefreshing}
+              className="flex-1 flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 text-white text-[11px] font-black uppercase tracking-widest py-3 rounded-2xl active:scale-95 transition-all disabled:opacity-40 border border-white/10"
+            >
+              {qrRefreshing
+                ? <Loader2 size={13} className="animate-spin" />
+                : <RefreshCw size={13} />
+              }
+              Regenerate
+            </button>
+            {/* Download Button */}
+            <button
+              onClick={handleDownloadQR}
+              className="flex-1 flex items-center justify-center gap-2 bg-primary text-white text-[11px] font-black uppercase tracking-widest py-3 rounded-2xl active:scale-95 transition-all shadow-lg shadow-primary/30"
+            >
+              <Download size={13} />
+              Download
+            </button>
           </div>
 
           {/* Divider */}
-          <div className="h-px bg-white/5 mx-6" />
+          <div className="h-px bg-white/5 mx-5" />
 
           {/* QR Body */}
-          <div className="relative z-10 flex flex-col items-center gap-4 px-6 py-6">
-            <div id="canteen-qr-svg" className="p-5 bg-white rounded-[28px] shadow-xl">
-              <QRCodeSVG
+          <div className="relative z-10 flex flex-col items-center gap-4 px-5 py-6">
+            <div id="canteen-qr-canvas" className="p-5 bg-white rounded-[28px] shadow-xl w-full max-w-[260px] flex items-center justify-center">
+              <QRCodeCanvas
                 value={canteenQR}
-                size={168}
+                size={220}
                 bgColor="#ffffff"
                 fgColor="#111111"
                 level="H"
+                style={{ width: '100%', height: 'auto', maxWidth: 220 }}
               />
             </div>
-            <div className="flex flex-col items-center gap-1">
-              <p className="text-gray-400 text-xs font-bold text-center">
-                Employees scan this code to start or end their shift
-              </p>
-            </div>
-            <div className="w-full bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-3 flex items-center gap-3">
-              <div className="w-7 h-7 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+            <p className="text-gray-400 text-xs font-bold text-center">
+              Employees scan this code to start or end their shift
+            </p>
+            <div className="w-full bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-3 flex items-start gap-3">
+              <div className="w-7 h-7 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
                 <AlertTriangle size={13} className="text-amber-400" />
               </div>
               <p className="text-amber-300 text-[10px] font-bold leading-relaxed">
-                After regenerating, print the new QR and replace the one on the wall before the next shift.
+                After regenerating, download the new QR and replace the one on the wall before the next shift.
               </p>
             </div>
           </div>
@@ -369,34 +386,6 @@ export default function AdminDashboard() {
       </div>
 
       <AdminBottomNav />
-
-      {/* Toast Notification */}
-      {toast && (
-        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-bottom-4 fade-in duration-300`}>
-          <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl backdrop-blur-sm ${
-            toast.type === 'success'
-              ? 'bg-gray-900 border border-green-500/30'
-              : 'bg-gray-900 border border-red-500/30'
-          }`}>
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-              toast.type === 'success' ? 'bg-green-500/20' : 'bg-red-500/20'
-            }`}>
-              {toast.type === 'success'
-                ? <CheckCircle2 size={16} className="text-green-400" />
-                : <X size={16} className="text-red-400" />
-              }
-            </div>
-            <p className={`text-sm font-bold max-w-[240px] leading-snug ${
-              toast.type === 'success' ? 'text-green-300' : 'text-red-300'
-            }`}>
-              {toast.message}
-            </p>
-            <button onClick={() => setToast(null)} className="ml-2 text-gray-500 hover:text-gray-300 transition-colors shrink-0">
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Notifications Modal */}
       {showNotifs && (
