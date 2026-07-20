@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { cn, formatPrice, formatTime } from '@/lib/utils'
 import { useToast } from '@/lib/toast'
-import type { AttendanceRecord, Order, Employee, EmployeeTask } from '@/types'
+import type { AttendanceRecord, Order, Employee, EmployeeTask, OrderStatus } from '@/types'
 import { useRouter } from 'next/navigation'
 import { Scanner } from '@yudiel/react-qr-scanner'
 import CustomerBottomNav from '@/components/customer/CustomerBottomNav'
@@ -215,14 +215,36 @@ export default function EmployeeDashboard() {
   }
 
   async function updateStatus(id: string, s: string) {
+    const targetOrder = orders.find(o => o.id === id)
+    if (!targetOrder) return
+    const prevStatus = targetOrder.status
+
     setActionLoading(true)
+
+    // Optimistic Update (Instant UI reaction)
+    setOrders(prev => {
+      if (s === 'delivered') {
+        return prev.filter(o => o.id !== id)
+      }
+      return prev.map(o => o.id === id ? { ...o, status: s as OrderStatus } : o)
+    })
+    showToast('success', `Order ${targetOrder.orderNumber} status changed to ${s}!`)
+
     try {
-      await supabase.from('orders').update({
+      const { error } = await supabase.from('orders').update({
         status: s,
         updatedAt: new Date().toISOString()
       }).eq('id', id)
+
+      if (error) throw error
     } catch (err) {
       console.error(err)
+      // Rollback on error
+      setOrders(prev => {
+        const exists = prev.some(o => o.id === id)
+        if (!exists) return [targetOrder, ...prev]
+        return prev.map(o => o.id === id ? { ...o, status: prevStatus } : o)
+      })
       showToast('error', 'Failed to update order status.')
     } finally {
       setActionLoading(false)
