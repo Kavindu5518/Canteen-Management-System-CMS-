@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/AuthContext'
 
 // Public paths - no auth needed
 const PUBLIC = ['/login']
-// Paths that bypass ALL routing logic (always accessible)
+// Paths that bypass ALL routing logic
 const BYPASS = ['/admin-setup']
 // Admin-only paths
 const ADMIN_PATHS = ['/admin']
@@ -25,69 +25,42 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
   const isEmployeePg = EMPLOYEE_PATHS.some(p => pathname.startsWith(p))
   const isCustomer   = CUSTOMER_PATHS.some(p => pathname.startsWith(p))
 
-  // Determine if a redirect is required
-  let shouldRedirect = false
-
-  if (!loading && !isBypass && userData) {
-    if (!supabaseUser && !isPublic) {
-      shouldRedirect = true
-    } else if (supabaseUser && isPublic) {
-      shouldRedirect = true
-    } else if (supabaseUser && isAdmin && userData.role !== 'admin') {
-      shouldRedirect = true
-    } else if (supabaseUser && isEmployeePg && userData.role !== 'employee') {
-      shouldRedirect = true
-    } else if (supabaseUser && isCustomer && (userData.role === 'admin' || userData.role === 'employee')) {
-      shouldRedirect = true
-    }
-  }
-
   useEffect(() => {
-    if (loading || isBypass || !userData) return
+    if (loading || isBypass) return
 
-    // Not logged in → login page
+    // 1. Not logged in → redirect to /login
     if (!supabaseUser && !isPublic) {
       router.replace('/login')
       return
     }
 
-    // Logged in on login page → redirect to correct home directly
+    // 2. Logged in on public login page → redirect to role home
     if (supabaseUser && isPublic) {
-      if (userData.role === 'admin') router.replace('/admin/dashboard')
-      else if (userData.role === 'employee') router.replace('/employee/dashboard')
+      const role = userData?.role || 'student'
+      if (role === 'admin') router.replace('/admin/dashboard')
+      else if (role === 'employee') router.replace('/employee/dashboard')
       else router.replace('/menu')
       return
     }
 
-    // Non-admin trying to access admin → redirect
-    if (supabaseUser && isAdmin && userData.role !== 'admin') {
-      if (userData.role === 'employee') router.replace('/employee/dashboard')
-      else router.replace('/menu')
-      return
-    }
-
-    // Non-employee trying to access employee dashboard → redirect
-    if (supabaseUser && isEmployeePg && userData.role !== 'employee') {
-      if (userData.role === 'admin') router.replace('/admin/dashboard')
-      else router.replace('/menu')
-      return
-    }
-
-    // Admin trying to access customer pages → redirect to admin dashboard
-    if (supabaseUser && isCustomer && userData.role === 'admin') {
-      router.replace('/admin/dashboard')
-      return
-    }
-
-    // Employee trying to access customer pages → redirect to employee dashboard
-    if (supabaseUser && isCustomer && userData.role === 'employee') {
-      router.replace('/employee/dashboard')
-      return
+    // 3. Verify role permissions if userData is available
+    if (supabaseUser && userData) {
+      if (isAdmin && userData.role !== 'admin') {
+        router.replace(userData.role === 'employee' ? '/employee/dashboard' : '/menu')
+        return
+      }
+      if (isEmployeePg && userData.role !== 'employee') {
+        router.replace(userData.role === 'admin' ? '/admin/dashboard' : '/menu')
+        return
+      }
+      if (isCustomer && (userData.role === 'admin' || userData.role === 'employee')) {
+        router.replace(userData.role === 'admin' ? '/admin/dashboard' : '/employee/dashboard')
+        return
+      }
     }
   }, [supabaseUser, userData, loading, isBypass, isPublic, isAdmin, isEmployeePg, isCustomer, pathname, router])
 
-  // Show loading spinner while initial auth loading is in progress or waiting for route redirect
-  if (loading || shouldRedirect) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center">
         <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center mb-4">

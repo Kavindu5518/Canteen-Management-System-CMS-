@@ -36,8 +36,8 @@ export default function CheckoutPage() {
   }, [])
 
   const subtotal = cart.reduce((s, i) => s + i.menuItem.price * i.quantity, 0)
-  const deliveryFee = deliveryType === 'hostel_delivery' ? 30 : 0
-  const tax = Math.round(subtotal * 0.05)
+  const deliveryFee = 0
+  const tax = 0
   const total = subtotal + deliveryFee + tax
 
   function updateQty(id: string, delta: number) {
@@ -371,8 +371,7 @@ export default function CheckoutPage() {
           <div className="space-y-2.5">
             {[
               ['Subtotal', formatPrice(subtotal)],
-              ['Delivery Fee', deliveryFee === 0 ? 'Rs.0' : formatPrice(deliveryFee)],
-              ['Tax (GST 5%)', `Rs. ${tax}`],
+              ['Delivery Fee', deliveryFee === 0 ? 'Free' : formatPrice(deliveryFee)],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between">
                 <span className="text-gray-500 text-sm font-medium">{label}</span>
