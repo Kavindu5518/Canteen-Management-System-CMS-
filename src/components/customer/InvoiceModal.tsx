@@ -95,8 +95,17 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
               <p className="text-sm font-bold text-gray-900">{order.userName}</p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Payment</p>
-              <p className="text-sm font-bold text-gray-900 capitalize">{order.paymentMethod.replace('_', ' ')}</p>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Payment Method</p>
+              <p className="text-sm font-bold text-gray-900">
+                {order.paymentMethod === 'cash' ? 'Cash on Counter' : order.paymentMethod === 'card' ? 'Card / Online' : 'QR Scan'}
+              </p>
+              <p className="text-[11px] font-extrabold mt-0.5">
+                {order.paymentMethod === 'cash' && order.status !== 'delivered' && order.paymentStatus !== 'paid' ? (
+                  <span className="text-amber-600">Status: UNPAID (CASH)</span>
+                ) : (
+                  <span className="text-green-600">Status: Paid</span>
+                )}
+              </p>
             </div>
           </div>
 
