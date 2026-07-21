@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import {
   Clock, CheckCircle2, QrCode, ClipboardList,
-  TrendingUp, LogOut, Loader2, Calendar, Camera, Check, Square
+  TrendingUp, LogOut, Loader2, Calendar, Camera, Check, Square, Banknote
 } from 'lucide-react'
 import { cn, formatPrice, formatTime } from '@/lib/utils'
 import { useToast } from '@/lib/toast'
@@ -214,6 +214,39 @@ export default function EmployeeDashboard() {
     } catch (e) { console.error(e) }
   }
 
+  async function collectCash(id: string) {
+    const targetOrder = orders.find(o => o.id === id)
+    if (!targetOrder) return
+
+    setActionLoading(true)
+
+    // Optimistic Update (Remove from active list instantly)
+    setOrders(prev => prev.filter(o => o.id !== id))
+    showToast('success', `Cash collected for ${targetOrder.orderNumber}! Order completed.`)
+
+    try {
+      const updateData: any = {
+        status: 'delivered',
+        paymentStatus: 'paid',
+        updatedAt: new Date().toISOString()
+      }
+
+      let { error } = await supabase.from('orders').update(updateData).eq('id', id)
+      if (error) {
+        console.warn("Primary collectCash update failed, trying fallback without paymentStatus:", error.message)
+        delete updateData.paymentStatus
+        const fallback = await supabase.from('orders').update(updateData).eq('id', id)
+        if (fallback.error) throw fallback.error
+      }
+    } catch (err: any) {
+      console.error("Collect cash error:", err)
+      setOrders(prev => [targetOrder, ...prev])
+      showToast('error', 'Failed to collect cash: ' + (err?.message || 'Database update error'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   async function updateStatus(id: string, s: string) {
     const targetOrder = orders.find(o => o.id === id)
     if (!targetOrder) return
@@ -231,21 +264,32 @@ export default function EmployeeDashboard() {
     showToast('success', `Order ${targetOrder.orderNumber} status changed to ${s}!`)
 
     try {
-      const { error } = await supabase.from('orders').update({
+      const updateData: any = {
         status: s,
         updatedAt: new Date().toISOString()
-      }).eq('id', id)
+      }
+      if (s === 'delivered' && targetOrder.paymentMethod === 'cash') {
+        updateData.paymentStatus = 'paid'
+      }
 
-      if (error) throw error
-    } catch (err) {
-      console.error(err)
+      let { error } = await supabase.from('orders').update(updateData).eq('id', id)
+      if (error && updateData.paymentStatus) {
+        console.warn("Update status with paymentStatus failed, trying fallback:", error.message)
+        delete updateData.paymentStatus
+        const fallback = await supabase.from('orders').update(updateData).eq('id', id)
+        if (fallback.error) throw fallback.error
+      } else if (error) {
+        throw error
+      }
+    } catch (err: any) {
+      console.error("Update status error:", err)
       // Rollback on error
       setOrders(prev => {
         const exists = prev.some(o => o.id === id)
         if (!exists) return [targetOrder, ...prev]
         return prev.map(o => o.id === id ? { ...o, status: prevStatus } : o)
       })
-      showToast('error', 'Failed to update order status.')
+      showToast('error', 'Failed to update order status: ' + (err?.message || 'Database update error'))
     } finally {
       setActionLoading(false)
     }
@@ -399,58 +443,127 @@ export default function EmployeeDashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {orders.map(order => (
-                <div key={order.id} className="bg-white rounded-[32px] p-5 shadow-card border border-gray-100 flex flex-col gap-4 active:scale-[0.98] transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center shrink-0 border border-gray-100">
-                      <span className="text-gray-900 font-extrabold text-sm">{order.orderNumber.slice(-3)}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-black text-gray-900 truncate">{order.userName}</p>
-                      <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-0.5">
-                        {order.items?.length || 0} item{(order.items?.length || 0) > 1 ? 's' : ''} · {formatTime(new Date(order.createdAt))}
-                      </p>
-                    </div>
-                    <span className={cn('text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest',
-                      order.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600')}>
-                      {order.status}
-                    </span>
-                  </div>
+              {orders.map(order => {
+                const isCashUnpaid = order.paymentMethod === 'cash' && order.status !== 'delivered' && order.paymentStatus !== 'paid'
+                const isCashPaid = order.paymentMethod === 'cash' && (order.paymentStatus === 'paid' || order.status === 'delivered')
 
-                  <div className="space-y-1.5 pl-2 border-l-2 border-gray-50">
-                    {order.items?.map((it: any, idx: number) => (
-                      <p key={idx} className="text-xs text-gray-500 font-bold">{it.quantity}x {it.name}</p>
-                    ))}
-                  </div>
+                return (
+                  <div key={order.id} className="bg-white rounded-[28px] p-5 shadow-card border border-gray-100 flex flex-col gap-4 transition-all">
+                    {/* Top Header */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center shrink-0 border border-gray-200/60 font-black text-gray-900 text-sm">
+                          {order.orderNumber.replace('#', '').slice(-3)}
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-black text-gray-900 truncate leading-tight">{order.userName}</h3>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                            {order.items?.length || 0} ITEM{(order.items?.length || 0) > 1 ? 'S' : ''} · {formatTime(new Date(order.createdAt))}
+                          </p>
+                        </div>
+                      </div>
 
-                  <div className="flex gap-2">
-                    {order.status === 'pending' && (
-                      <button
-                        onClick={() => updateStatus(order.id, 'preparing')}
-                        className="flex-1 py-3 bg-blue-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-blue active:scale-95 transition-all"
-                      >
-                        Start Preparing
-                      </button>
-                    )}
-                    {(order.status === 'preparing' || order.status === 'pending') && (
-                      <button
-                        onClick={() => updateStatus(order.id, 'ready')}
-                        className="flex-1 py-3 bg-green-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-green active:scale-95 transition-all"
-                      >
-                        Mark Ready
-                      </button>
-                    )}
-                    {order.status === 'ready' && (
-                      <button
-                        onClick={() => updateStatus(order.id, 'delivered')}
-                        className="flex-1 py-3 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all"
-                      >
-                        Complete Order
-                      </button>
-                    )}
+                      {/* Status Badges */}
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {isCashUnpaid ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-widest">
+                            <Banknote size={11} className="text-amber-500 shrink-0" />
+                            UNPAID (CASH)
+                          </span>
+                        ) : isCashPaid ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-widest">
+                            <CheckCircle2 size={11} className="text-emerald-500 shrink-0" />
+                            PAID (CASH)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-widest">
+                            <CheckCircle2 size={11} className="text-blue-500 shrink-0" />
+                            PAID (CARD)
+                          </span>
+                        )}
+
+                        <span className={cn('text-[9px] font-black px-2.5 py-1 rounded-xl uppercase tracking-widest',
+                          order.status === 'pending' ? 'bg-amber-100/70 text-amber-800' :
+                          order.status === 'preparing' ? 'bg-blue-100/70 text-blue-800' :
+                          'bg-emerald-100/70 text-emerald-800')}>
+                          {order.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Items & Payment Details Box */}
+                    <div className="bg-gray-50/70 p-3.5 rounded-2xl border border-gray-100 space-y-1.5">
+                      {order.items?.map((it: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between text-xs font-bold text-gray-700">
+                          <span>{it.quantity}x {it.name}</span>
+                          <span className="text-gray-400 font-semibold">{formatPrice(it.price * it.quantity)}</span>
+                        </div>
+                      ))}
+
+                      {isCashUnpaid && (
+                        <div className="mt-2 pt-2 border-t border-amber-200/60 flex items-center justify-between">
+                          <span className="text-[11px] font-extrabold text-amber-800 flex items-center gap-1">
+                            <Banknote size={13} className="text-amber-600 shrink-0" /> Amount to Collect:
+                          </span>
+                          <span className="text-xs font-black text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-lg">
+                            {formatPrice(order.total)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Step Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      {order.status === 'pending' && (
+                        <button
+                          onClick={() => updateStatus(order.id, 'preparing')}
+                          className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-wider shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                        >
+                          <Clock size={15} /> Start Preparing
+                        </button>
+                      )}
+
+                      {order.status === 'preparing' && (
+                        <button
+                          onClick={() => updateStatus(order.id, 'ready')}
+                          className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-wider shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
+                        >
+                          <CheckCircle2 size={15} /> Mark Ready
+                        </button>
+                      )}
+
+                      {order.status === 'ready' && (
+                        isCashUnpaid ? (
+                          <button
+                            onClick={() => collectCash(order.id)}
+                            className="flex-1 py-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-wider shadow-md shadow-amber-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                          >
+                            <Banknote size={16} /> Collect Cash & Complete ({formatPrice(order.total)})
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => updateStatus(order.id, 'delivered')}
+                            className="flex-1 py-3.5 bg-gray-900 hover:bg-gray-800 text-white rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                          >
+                            <CheckCircle2 size={16} /> Complete Order
+                          </button>
+                        )
+                      )}
+
+                      {/* Quick action: Early cash collection before order reaches ready state */}
+                      {order.status !== 'ready' && isCashUnpaid && (
+                        <button
+                          onClick={() => collectCash(order.id)}
+                          title="Collect cash now and mark complete"
+                          className="px-3.5 py-3 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1 shrink-0"
+                        >
+                          <Banknote size={14} /> Collect Cash
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

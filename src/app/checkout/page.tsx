@@ -4,13 +4,12 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import {
   ArrowLeft, ShoppingBag, Home, CreditCard,
-  QrCode, Plus, Loader2, CheckCircle2
+  Plus, Loader2, CheckCircle2, Banknote, AlertCircle
 } from 'lucide-react'
 import CustomerBottomNav from '@/components/customer/CustomerBottomNav'
 import { cn, formatPrice } from '@/lib/utils'
 import { useToast } from '@/lib/toast'
 import type { CartItem, DeliveryType, PaymentMethod } from '@/types'
-import { Scanner } from '@yudiel/react-qr-scanner'
 // 1. PayHere Hash import එක මෙතනට එනවා
 import { generatePayHereHash } from '@/app/actions/payhere'
 
@@ -24,7 +23,7 @@ export default function CheckoutPage() {
   const [placing, setPlacing] = useState(false)
   const [success, setSuccess] = useState(false)
   const [orderId, setOrderId] = useState('')
-  const [qrScanned, setQrScanned] = useState(false)
+  const [orderTotal, setOrderTotal] = useState(0)
   const [showAddressModal, setShowAddressModal] = useState(false)
   const [tempAddress, setTempAddress] = useState(deliveryAddress)
 
@@ -90,16 +89,12 @@ export default function CheckoutPage() {
 
   async function placeOrder() {
     if (cart.length === 0) return
-    if (paymentMethod === 'qr_scan' && !qrScanned) {
-      showToast('warning', "Please scan the canteen's QR code first to complete payment.")
-      return
-    }
     setPlacing(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const orderNum = `#${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100).toString().padStart(2, '0')}`
 
-      const { data: orderDoc, error: orderError } = await supabase.from('orders').insert([{
+      const payload: any = {
         orderNumber: orderNum,
         userId: user?.id || null,
         userName: user?.user_metadata?.full_name ?? 'Guest User',
@@ -107,25 +102,42 @@ export default function CheckoutPage() {
         deliveryType,
         deliveryAddress: deliveryType === 'hostel_delivery' ? deliveryAddress : null,
         paymentMethod,
+        paymentStatus: paymentMethod === 'cash' ? 'unpaid' : 'paid',
         subtotal,
         deliveryFee,
         tax,
         total,
-      }]).select().single()
+      }
 
-      if (orderError) throw orderError
+      let orderDoc: any = null
+      let { data, error: orderError } = await supabase.from('orders').insert([payload]).select().single()
 
-      const orderItemsData = cart.map(c => ({
-        orderId: orderDoc.id,
-        menuItemId: c.menuItem.id,
-        name: c.menuItem.name,
-        price: c.menuItem.price,
-        quantity: c.quantity,
-        imageUrl: c.menuItem.imageUrl,
-      }))
+      if (orderError) {
+        // Fallback: If paymentStatus column is missing in Supabase orders schema, insert without it
+        console.warn("Primary insert failed, attempting fallback insert without paymentStatus:", orderError.message)
+        delete payload.paymentStatus
+        const fallback = await supabase.from('orders').insert([payload]).select().single()
+        if (fallback.error) throw fallback.error
+        orderDoc = fallback.data
+      } else {
+        orderDoc = data
+      }
 
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItemsData)
-      if (itemsError) throw itemsError
+      if (cart.length > 0 && orderDoc?.id) {
+        const orderItemsData = cart.map(c => ({
+          orderId: orderDoc.id,
+          menuItemId: c.menuItem.id,
+          name: c.menuItem.name,
+          price: c.menuItem.price,
+          quantity: c.quantity,
+          imageUrl: c.menuItem.imageUrl || '',
+        }))
+
+        const { error: itemsError } = await supabase.from('order_items').insert(orderItemsData)
+        if (itemsError) {
+          console.warn("Order items insert warning:", itemsError)
+        }
+      }
 
       // Inventory Sync
       try {
@@ -149,20 +161,21 @@ export default function CheckoutPage() {
         console.warn("Inventory Sync failed:", invErr)
       }
 
-      // 3. මෙතනදී Payment Method එක අනුව තීරණය කරනවා
+      // 3. Payment Method এর উপর ভিত্তি করে তীরণয় করন
       if (paymentMethod === 'card') {
-        // PayHere පටන් ගන්න
+        // PayHere start
         await startPayHerePayment(orderNum, total);
       } else {
-        // QR Scan නම් සාමාන්‍ය විදිහටම Success පෙන්නන්න
+        // Cash on Pickup — instantly confirm, paymentStatus = 'unpaid'
         setOrderId(orderNum)
+        setOrderTotal(total)
         sessionStorage.removeItem('cart')
         setSuccess(true)
       }
 
     } catch (e: any) {
       console.error("Order Place Error:", e)
-      showToast('error', 'Failed to place order: ' + e.message)
+      showToast('error', 'Failed to place order: ' + (e?.message || e?.error_description || 'Unknown database error'))
     } finally {
       setPlacing(false)
     }
@@ -170,6 +183,7 @@ export default function CheckoutPage() {
 
   /* ── Success Screen ── */
   if (success) {
+    const isCash = paymentMethod === 'cash'
     return (
       <div className="flex flex-col items-center justify-center min-h-screen px-8 text-center bg-white">
         <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6">
@@ -180,9 +194,22 @@ export default function CheckoutPage() {
           Your order <span className="text-primary font-bold">{orderId}</span> has been received
         </p>
         <p className="text-gray-400 text-sm mt-1">We'll notify you when it's ready</p>
+
+        {isCash && (
+          <div className="mt-6 w-full max-w-xs bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left">
+            <p className="text-xs font-black text-amber-800 uppercase tracking-wider mb-1">Cash Payment Note</p>
+            <p className="text-xs font-bold text-amber-900 leading-relaxed">
+              {deliveryType === 'hostel_delivery'
+                ? `Please pay Rs. ${orderTotal.toFixed(2)} in cash to the delivery staff at your door.`
+                : `Please bring Rs. ${orderTotal.toFixed(2)} in cash when collecting your order at the counter.`
+              }
+            </p>
+          </div>
+        )}
+
         <button
           onClick={() => router.push('/orders')}
-          className="btn-primary mt-10 max-w-xs w-full py-3"
+          className="btn-primary mt-8 max-w-xs w-full py-3"
         >
           Track My Order
         </button>
@@ -317,49 +344,32 @@ export default function CheckoutPage() {
             </label>
 
             {/* QR */}
+            {/* Cash on Pickup */}
             <label className={cn(
               'flex items-center gap-3 p-3.5 rounded-2xl border-2 cursor-pointer transition-all',
-              paymentMethod === 'qr_scan' ? 'border-primary bg-primary/5' : 'border-gray-200'
+              paymentMethod === 'cash' ? 'border-amber-400 bg-amber-50' : 'border-gray-200'
             )}>
-              <QrCode size={20} className={paymentMethod === 'qr_scan' ? 'text-primary' : 'text-gray-400'} />
+              <Banknote size={20} className={paymentMethod === 'cash' ? 'text-amber-500' : 'text-gray-400'} />
               <div className="flex-1">
-                <p className="text-sm font-bold text-gray-900">Direct QR Scan</p>
-                <p className="text-xs text-gray-400">Scan at Canteen Counter</p>
+                <p className="text-sm font-bold text-gray-900">Cash on Pickup / Pay at Counter</p>
+                <p className="text-xs text-gray-400">Pay at Counter / On Delivery</p>
               </div>
               <input
                 type="radio"
                 name="payment"
-                checked={paymentMethod === 'qr_scan'}
-                onChange={() => { setPayment('qr_scan'); setQrScanned(false) }}
-                className="accent-primary w-4 h-4"
+                checked={paymentMethod === 'cash'}
+                onChange={() => setPayment('cash')}
+                className="accent-amber-500 w-4 h-4"
               />
             </label>
 
-            {/* QR Visualization... (ඉතිරි code එක කලින් විදිහටම තියෙනවා) */}
-            {paymentMethod === 'qr_scan' && (
-              <div className="mt-4 p-6 bg-white border-2 border-primary/20 rounded-3xl flex flex-col items-center animate-in zoom-in duration-300">
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest text-center mb-4">
-                  {qrScanned ? "Payment Verified" : `Scan Canteen QR to Pay ${formatPrice(total)}`}
+            {/* Cash info notice */}
+            {paymentMethod === 'cash' && (
+              <div className="mt-1 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-2.5 animate-in fade-in duration-300">
+                <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 font-semibold leading-relaxed">
+                  Your order will be confirmed instantly. Please have the exact cash amount ready when picking up at counter or delivery.
                 </p>
-                {!qrScanned ? (
-                  <div className="relative w-full aspect-square max-w-[200px] bg-gray-50 flex flex-col items-center justify-center overflow-hidden rounded-3xl border-4 border-dashed border-gray-200 group">
-                    <Scanner
-                      onScan={(result) => {
-                        if (result && result.length > 0) {
-                          setQrScanned(true)
-                        }
-                      }}
-                      components={{ onOff: false, torch: false, zoom: false, finder: true }}
-                      styles={{ container: { width: '100%', height: '100%' } }}
-                    />
-                    <div className="absolute inset-4 border-2 border-primary/20 rounded-[24px] animate-pulse pointer-events-none" />
-                  </div>
-                ) : (
-                  <div className="w-full max-w-[200px] aspect-square bg-green-50 rounded-3xl flex flex-col items-center justify-center border-2 border-green-200 animate-in zoom-in">
-                    <CheckCircle2 size={48} className="text-green-500 mb-2" />
-                    <span className="text-xs font-black text-green-600 uppercase tracking-widest px-4 text-center">Payment Captured</span>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -390,14 +400,21 @@ export default function CheckoutPage() {
       <div className="px-5 pb-24 pt-4">
         <button
           onClick={placeOrder}
-          disabled={placing || cart.length === 0 || (paymentMethod === 'qr_scan' && !qrScanned)}
-          className="btn-primary flex items-center justify-center gap-2 transition-all w-full py-4 text-base"
+          disabled={placing || cart.length === 0}
+          className={cn(
+            'flex items-center justify-center gap-2 transition-all w-full py-4 text-base font-extrabold rounded-2xl',
+            paymentMethod === 'cash'
+              ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200'
+              : 'btn-primary'
+          )}
         >
           {placing
             ? <><Loader2 size={18} className="animate-spin" /> Processing...</>
             : paymentMethod === 'card'
               ? `Pay with PayHere • ${formatPrice(total)}`
-              : `Place Order • ${formatPrice(total)} →`
+              : paymentMethod === 'cash'
+                ? `Place Order • Pay Rs. ${total.toFixed(2)} at Counter`
+                : `Place Order • ${formatPrice(total)} →`
           }
         </button>
       </div>

@@ -35,7 +35,8 @@ export interface MenuItem {
 // ─── Orders ──────────────────────────────────────────────────
 export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
 export type DeliveryType = 'self_pickup' | 'hostel_delivery'
-export type PaymentMethod = 'card' | 'qr_scan'
+export type PaymentMethod = 'card' | 'qr_scan' | 'cash'
+export type PaymentStatus = 'paid' | 'unpaid'
 
 export interface OrderItem {
   menuItemId: string
@@ -55,6 +56,7 @@ export interface Order {
   deliveryType: DeliveryType
   deliveryAddress?: string
   paymentMethod: PaymentMethod
+  paymentStatus?: PaymentStatus
   subtotal: number
   deliveryFee: number
   tax: number
@@ -146,6 +148,7 @@ export interface CartState {
   deliveryType: DeliveryType
   deliveryAddress: string
   paymentMethod: PaymentMethod
+  paymentStatus?: PaymentStatus
 }
 
 // ─── Dashboard Stats ─────────────────────────────────────────
