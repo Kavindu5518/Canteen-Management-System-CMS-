@@ -53,10 +53,6 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
         router.replace(userData.role === 'admin' ? '/admin/dashboard' : '/menu')
         return
       }
-      if (isCustomer && (userData.role === 'admin' || userData.role === 'employee')) {
-        router.replace(userData.role === 'admin' ? '/admin/dashboard' : '/employee/dashboard')
-        return
-      }
     }
   }, [supabaseUser, userData, loading, isBypass, isPublic, isAdmin, isEmployeePg, isCustomer, pathname, router])
 

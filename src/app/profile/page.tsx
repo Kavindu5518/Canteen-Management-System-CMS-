@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
-import { ArrowLeft, Camera, User, Bell, Lock, Monitor, ChevronRight, LogOut, Loader2 } from 'lucide-react'
+import { Camera, User, Bell, Lock, Monitor, ChevronRight, LogOut, Loader2 } from 'lucide-react'
 import CustomerBottomNav from '@/components/customer/CustomerBottomNav'
 import { useToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
@@ -84,12 +84,9 @@ export default function ProfilePage() {
   return (
     <div className="bg-gray-50 has-bottom-nav min-h-screen">
       {/* Header */}
-      <div className="bg-white px-5 pt-14 pb-4 flex items-center gap-3 border-b border-gray-100 sticky top-0 z-40">
-        <button onClick={() => router.back()} className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center transition-transform active:scale-95">
-          <ArrowLeft size={18} />
-        </button>
-        <h1 className="text-lg font-extrabold flex-1 text-center text-gray-900">Profile</h1>
-        <div className="w-9" />
+      <div className="bg-white px-5 pt-14 pb-4 sticky top-0 z-40 border-b border-gray-100">
+        <h1 className="text-xl font-extrabold text-gray-900">My Profile</h1>
+        <p className="text-gray-400 text-xs mt-0.5">Manage your account & preferences</p>
       </div>
 
       {/* Avatar */}
@@ -154,6 +151,7 @@ export default function ProfilePage() {
             </div>
           </div>
         ))}
+
 
         <button onClick={handleLogout}
           className="w-full py-4 rounded-2xl border-2 border-red-200 bg-red-50 text-red-600 font-bold flex items-center justify-center gap-2 active:scale-95 hover:bg-red-100 transition-all">

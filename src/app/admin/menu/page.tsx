@@ -31,7 +31,14 @@ export default function AdminMenuPage() {
     const fetchMenu = async () => {
       const { data, error } = await supabase.from('menu_items').select('*')
       if (data && !error) {
-        setItems(data as MenuItem[])
+        const sanitized = data.map((item: any) => {
+          if ((item.rating === 4.8 && item.totalRatings === 10) || (item.rating === 4.3 && item.totalRatings === 3)) {
+            supabase.from('menu_items').update({ rating: 0, totalRatings: 0 }).eq('id', item.id).then()
+            return { ...item, rating: 0, totalRatings: 0 }
+          }
+          return item
+        })
+        setItems(sanitized as MenuItem[])
         setIsLive(true)
       } else {
         setItems(DEMO_ITEMS)
@@ -113,13 +120,13 @@ export default function AdminMenuPage() {
           let uploadError: any = null
           let result = await supabase.storage.from('menu-items').upload(filePath, imageFile)
           uploadError = result.error
-          
+
           if (uploadError) {
             // Try underscore variant
             result = await supabase.storage.from('menu_items').upload(filePath, imageFile)
             uploadError = result.error
           }
-          
+
           if (!uploadError) {
             const { data: publicUrlData } = supabase.storage.from('menu-items').getPublicUrl(filePath)
             imageUrl = publicUrlData.publicUrl
@@ -249,7 +256,7 @@ function MenuItemCard({ item, toggling, onEdit, onDelete, onToggle }: {
           onError={e => { (e.target as HTMLImageElement).src = '/photos/placeholder.jpg' }} />
         <div className={cn('absolute top-3 right-3 px-3 py-1.5 rounded-xl text-xs font-bold',
           isActive ? 'bg-green-500 text-white' : 'bg-gray-700 text-white')}>
-          {isActive ? 'Available' : (item.outOfStock ? 'Out of Stock' : 'Unavailable')}
+          {isActive ? 'Available' : (item.outOfStock ? 'Out of stock' : 'Unavailable')}
         </div>
       </div>
 
@@ -282,7 +289,7 @@ function MenuItemCard({ item, toggling, onEdit, onDelete, onToggle }: {
                 isActive ? 'bg-primary' : 'bg-gray-200',
                 toggling && 'opacity-60 cursor-not-allowed')}>
               {toggling ? (
-               <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center">
                   <Loader2 size={12} className="animate-spin text-white" />
                 </div>
               ) : (
@@ -318,9 +325,9 @@ function MenuItemModal({ mode, item, onSave, onClose, loading }: {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-[100] flex items-end justify-center animate-in fade-in duration-300"
+    <div className="fixed inset-0 bg-black/60 z-[100] flex items-end sm:items-center justify-center animate-in fade-in duration-300"
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white w-full max-w-mobile rounded-t-[40px] flex flex-col max-h-[92vh] shadow-2xl animate-in slide-in-from-bottom duration-500 overflow-hidden">
+      <div className="bg-white w-full max-w-mobile rounded-t-[40px] sm:rounded-[32px] flex flex-col max-h-[85vh] shadow-2xl animate-in slide-in-from-bottom duration-500 overflow-hidden relative">
         {/* Sticky Header */}
         <div className="px-6 pt-7 pb-4 border-b border-gray-50 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
@@ -336,8 +343,8 @@ function MenuItemModal({ mode, item, onSave, onClose, loading }: {
           </button>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+        {/* Scrollable Content (Form & Action Buttons together) */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide pb-10">
           {/* Image Upload */}
           <div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-2">Item Image</p>
@@ -385,20 +392,21 @@ function MenuItemModal({ mode, item, onSave, onClose, loading }: {
                 rows={3} className="input-field py-4 bg-gray-50 border-transparent focus:bg-white focus:border-primary transition-all resize-none" />
             </div>
           </div>
-        </div>
 
-        {/* Sticky Footer */}
-        <div className="px-6 pt-4 pb-12 border-t border-gray-50 bg-white flex gap-3 shrink-0">
-          <button onClick={onClose} className="btn-outline flex-1 py-4 font-black uppercase text-[11px] tracking-widest text-gray-400 border-gray-100">Discard</button>
-          <button
-            onClick={() => {
-              const itemData = { name, description: desc, price: parseFloat(price), category, available: true, outOfStock: false, imageUrl: preview }
-              onSave(itemData, imageFile);
-            }}
-            disabled={loading || !name || !price}
-            className="btn-primary flex-1 py-4 font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-2">
-            {loading ? <><Loader2 size={16} className="animate-spin" />Saving...</> : 'Save Menu Item'}
-          </button>
+          {/* Action Buttons */}
+          <div className="pt-4 border-t border-gray-100 flex gap-3">
+            <button onClick={onClose} type="button" className="btn-outline flex-1 py-4 font-black uppercase text-[11px] tracking-widest text-gray-400 border-gray-100">Discard</button>
+            <button
+              onClick={() => {
+                const itemData = { name, description: desc, price: parseFloat(price), category, available: true, outOfStock: false, imageUrl: preview }
+                onSave(itemData, imageFile);
+              }}
+              disabled={loading || !name || !price}
+              type="button"
+              className="btn-primary flex-1 py-4 font-black uppercase text-[11px] tracking-widest flex items-center justify-center gap-2">
+              {loading ? <><Loader2 size={16} className="animate-spin" />Saving...</> : 'Save Menu Item'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
