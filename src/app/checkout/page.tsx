@@ -75,15 +75,25 @@ export default function CheckoutPage() {
     };
 
     if (typeof window !== 'undefined' && (window as any).payhere) {
-      (window as any).payhere.startPayment(payment);
-
       (window as any).payhere.onCompleted = function onCompleted(orderId: string) {
         setOrderId(orderId);
         sessionStorage.removeItem('cart');
         setSuccess(true);
       };
+
+      (window as any).payhere.onDismissed = function onDismissed() {
+        console.log("PayHere payment modal closed by user.");
+        showToast('info', 'Payment process was cancelled.');
+      };
+
+      (window as any).payhere.onError = function onError(error: any) {
+        console.error("PayHere Error:", error);
+        showToast('error', 'Payment Error: ' + (error || 'Transaction failed'));
+      };
+
+      (window as any).payhere.startPayment(payment);
     } else {
-      showToast('error', 'PayHere is not loaded. Please refresh the page.')
+      showToast('error', 'PayHere script is not loaded. Please refresh the page.')
     }
   }
 
@@ -92,7 +102,7 @@ export default function CheckoutPage() {
     setPlacing(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      const orderNum = `#${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100).toString().padStart(2, '0')}`
+      const orderNum = `ORD-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100).toString().padStart(2, '0')}`
 
       const payload: any = {
         orderNumber: orderNum,
