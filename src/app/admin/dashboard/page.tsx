@@ -24,7 +24,7 @@ const QUICK_ACTIONS = [
 ]
 
 export default function AdminDashboard() {
-  const { userData } = useAuth()
+  const { userData, supabaseUser } = useAuth()
   const router = useRouter()
   const { showToast } = useToast()
   const [todaySales, setTodaySales] = useState(0)

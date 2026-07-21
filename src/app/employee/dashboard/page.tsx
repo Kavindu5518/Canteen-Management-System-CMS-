@@ -10,6 +10,7 @@ import { cn, formatPrice, formatTime } from '@/lib/utils'
 import { useToast } from '@/lib/toast'
 import type { AttendanceRecord, Order, Employee, EmployeeTask, OrderStatus } from '@/types'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Scanner } from '@yudiel/react-qr-scanner'
 import CustomerBottomNav from '@/components/customer/CustomerBottomNav'
 
@@ -314,11 +315,22 @@ export default function EmployeeDashboard() {
     <div className="bg-gray-50 pb-20 min-h-screen">
       {/* Header */}
       <div className="bg-white px-5 pt-14 pb-6 flex items-center justify-between border-b border-gray-100 sticky top-0 z-40">
-        <div>
-          <h1 className="text-xl font-black text-gray-900 leading-none">Staff Portal</h1>
-          <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1.5">
-            {userData?.name} · {userData?.role}
-          </p>
+        <div className="flex items-center gap-3">
+          <Link href="/profile" className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm shrink-0 active:scale-95 transition-transform">
+            {supabaseUser?.user_metadata?.photoURL || (userData as any)?.avatarUrl ? (
+              <img src={supabaseUser?.user_metadata?.photoURL || (userData as any)?.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-primary text-sm font-extrabold">
+                {userData?.name?.charAt(0)?.toUpperCase() ?? 'E'}
+              </span>
+            )}
+          </Link>
+          <div>
+            <h1 className="text-xl font-black text-gray-900 leading-none">Staff Portal</h1>
+            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1.5">
+              {userData?.name} · {userData?.role}
+            </p>
+          </div>
         </div>
         <button onClick={async () => { await supabase.auth.signOut(); router.push('/login') }}
           className="w-10 h-10 bg-red-50 rounded-2xl flex items-center justify-center text-red-500">
