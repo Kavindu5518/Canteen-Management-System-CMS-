@@ -14,12 +14,12 @@ import ItemDetailModal from '@/components/customer/ItemDetailModal'
 
 /* ── Demo data fallback ── */
 const DEMO_ITEMS: MenuItem[] = [
-  { id: '1', name: 'Rice & Curry', description: 'Rice, Coconut Sambal, Dhal Curry, Soya Meat', price: 80, category: 'lunch', imageUrl: '/photos/rice-curry.jpg', available: true, outOfStock: false, rating: 4.8, totalRatings: 120, createdAt: new Date(), updatedAt: new Date() },
-  { id: '2', name: 'Parota', description: '3 Parota, Dhal Curry and Coconut Sambal', price: 100, category: 'breakfast', imageUrl: '/photos/parota.jpg', available: true, outOfStock: false, rating: 4.9, totalRatings: 95, createdAt: new Date(), updatedAt: new Date() },
-  { id: '3', name: 'Pittu', description: 'Pittu and Curry', price: 100, category: 'breakfast', imageUrl: '/photos/pittu.jpg', available: true, outOfStock: false, rating: 4.7, totalRatings: 80, createdAt: new Date(), updatedAt: new Date() },
-  { id: '4', name: 'Fried Rice', description: 'Egg Fried Rice with Soy Sauce', price: 150, category: 'lunch', imageUrl: '/photos/fried-rice.jpg', available: true, outOfStock: false, rating: 4.6, totalRatings: 70, createdAt: new Date(), updatedAt: new Date() },
-  { id: '5', name: 'Tea', description: 'Ceylon Milk Tea', price: 20, category: 'beverages', imageUrl: '/photos/tea.jpg', available: true, outOfStock: false, rating: 4.5, totalRatings: 200, createdAt: new Date(), updatedAt: new Date() },
-  { id: '6', name: 'Devilled Chilli', description: 'Devilled Chicken with Chilli', price: 180, category: 'dinner', imageUrl: '/photos/chilli.jpg', available: true, outOfStock: false, rating: 4.8, totalRatings: 55, createdAt: new Date(), updatedAt: new Date() },
+  { id: '1', name: 'Rice & Curry', description: 'Rice, Coconut Sambal, Dhal Curry, Soya Meat', price: 80, category: 'lunch', imageUrl: '/photos/rice-curry.jpg', available: true, outOfStock: false, rating: 0, totalRatings: 0, createdAt: new Date(), updatedAt: new Date() },
+  { id: '2', name: 'Parota', description: '3 Parota, Dhal Curry and Coconut Sambal', price: 100, category: 'breakfast', imageUrl: '/photos/parota.jpg', available: true, outOfStock: false, rating: 0, totalRatings: 0, createdAt: new Date(), updatedAt: new Date() },
+  { id: '3', name: 'Pittu', description: 'Pittu and Curry', price: 100, category: 'breakfast', imageUrl: '/photos/pittu.jpg', available: true, outOfStock: false, rating: 0, totalRatings: 0, createdAt: new Date(), updatedAt: new Date() },
+  { id: '4', name: 'Fried Rice', description: 'Egg Fried Rice with Soy Sauce', price: 150, category: 'lunch', imageUrl: '/photos/fried-rice.jpg', available: true, outOfStock: false, rating: 0, totalRatings: 0, createdAt: new Date(), updatedAt: new Date() },
+  { id: '5', name: 'Tea', description: 'Ceylon Milk Tea', price: 20, category: 'beverages', imageUrl: '/photos/tea.jpg', available: true, outOfStock: false, rating: 0, totalRatings: 0, createdAt: new Date(), updatedAt: new Date() },
+  { id: '6', name: 'Devilled Chilli', description: 'Devilled Chicken with Chilli', price: 180, category: 'dinner', imageUrl: '/photos/chilli.jpg', available: true, outOfStock: false, rating: 0, totalRatings: 0, createdAt: new Date(), updatedAt: new Date() },
 ]
 
 const CATEGORIES = [
@@ -55,7 +55,15 @@ export default function MenuPage() {
         setItems(DEMO_ITEMS)
         setIsLive(false)
       } else if (data && data.length > 0) {
-        setItems(data as MenuItem[])
+        // Sanitize legacy placeholder ratings (4.8, 4.3, 10, 3 etc.)
+        const sanitized = data.map((item: any) => {
+          if ((item.rating === 4.8 && item.totalRatings === 10) || (item.rating === 4.3 && item.totalRatings === 3)) {
+            supabase.from('menu_items').update({ rating: 0, totalRatings: 0 }).eq('id', item.id).then()
+            return { ...item, rating: 0, totalRatings: 0 }
+          }
+          return item
+        })
+        setItems(sanitized as MenuItem[])
         setIsLive(true)
       } else {
         setItems([])
@@ -274,12 +282,12 @@ function FoodCard({ item, qty, onAdd, onRemove, onSelect }: {
             {item.outOfStock ? 'Out of Stock' : 'Unavailable'}
           </div>
         ) : (
-          <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-xl px-2 py-1 flex items-center gap-1">
-            <Star size={11} className="text-primary fill-primary" />
+          <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-xl px-2 py-1 flex items-center gap-1 shadow-sm">
+            <Star size={11} className={cn("text-primary", (item.rating || 0) > 0 && "fill-primary")} />
             <span className="text-xs font-bold text-gray-900">
-              {item.rating > 0 ? item.rating : 'New'}
+              {(item.rating || 0) > 0 ? item.rating : 'New'}
             </span>
-            {item.totalRatings > 0 && (
+            {(item.totalRatings || 0) > 0 && (item.rating || 0) > 0 && (
               <span className="text-[9px] text-gray-400 font-medium">({item.totalRatings})</span>
             )}
           </div>

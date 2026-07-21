@@ -19,15 +19,32 @@ export default function ItemDetailModal({ item, onClose, onAddToCart }: ItemDeta
     async function fetchFeedbacks() {
       setLoading(true)
       try {
-        // Query feedbacks where the 'items' array contains the current item name
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('order_feedback')
           .select('*')
           .contains('items', [item.name])
           .order('createdAt', { ascending: false })
           .limit(10)
 
-        if (!error && data) {
+        if (error || !data || data.length === 0) {
+          const { data: allData } = await supabase
+            .from('order_feedback')
+            .select('*')
+            .order('createdAt', { ascending: false })
+            .limit(20)
+
+          if (allData) {
+            data = allData.filter((f: any) =>
+              Array.isArray(f.items)
+                ? f.items.includes(item.name)
+                : typeof f.items === 'string'
+                ? f.items.includes(item.name)
+                : true
+            )
+          }
+        }
+
+        if (data) {
           setFeedbacks(data as OrderFeedback[])
         }
       } catch (err) {
@@ -64,9 +81,13 @@ export default function ItemDetailModal({ item, onClose, onAddToCart }: ItemDeta
                 {item.category}
               </span>
               <div className="flex items-center gap-1 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm">
-                <Star size={12} className="text-primary fill-primary" />
-                <span className="text-xs font-bold text-gray-900">{item.rating}</span>
-                <span className="text-[10px] text-gray-400 font-medium">({item.totalRatings || 0})</span>
+                <Star size={12} className={cn("text-primary", (item.rating || 0) > 0 && "fill-primary")} />
+                <span className="text-xs font-bold text-gray-900">
+                  {(item.rating || 0) > 0 ? item.rating : 'New'}
+                </span>
+                {(item.totalRatings || 0) > 0 && (
+                  <span className="text-[10px] text-gray-400 font-medium">({item.totalRatings})</span>
+                )}
               </div>
             </div>
             <h2 className="text-2xl font-black text-gray-900 leading-tight">{item.name}</h2>
