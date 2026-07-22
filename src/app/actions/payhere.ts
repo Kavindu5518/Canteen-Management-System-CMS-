@@ -2,9 +2,13 @@
 import crypto from 'crypto';
 
 export async function generatePayHereHash(orderId: string, amount: number) {
-    const merchantId = (process.env.NEXT_PUBLIC_PAYHERE_MERCHANT_ID || '').trim();
+    const merchantId = (process.env.NEXT_PUBLIC_PAYHERE_MERCHANT_ID || process.env.PAYHERE_MERCHANT_ID || '').trim();
     const secret = (process.env.PAYHERE_SECRET || '').trim();
     const currency = 'LKR';
+
+    if (!merchantId || !secret) {
+        throw new Error('PayHere credentials are not configured on the server. Please set NEXT_PUBLIC_PAYHERE_MERCHANT_ID and PAYHERE_SECRET.');
+    }
 
     // Clean orderId (remove any unexpected leading hash tags or spaces)
     const cleanOrderId = orderId.trim();
@@ -17,5 +21,14 @@ export async function generatePayHereHash(orderId: string, amount: number) {
     const mainString = merchantId + cleanOrderId + formattedAmount + currency + hashedSecret;
     const hash = crypto.createHash('md5').update(mainString).digest('hex').toUpperCase();
 
-    return hash;
+    // Determine sandbox mode dynamically
+    const sandbox = process.env.PAYHERE_MODE !== 'production' && 
+                    process.env.NEXT_PUBLIC_PAYHERE_MODE !== 'production';
+
+    return {
+        hash,
+        merchantId,
+        sandbox,
+        currency
+    };
 }

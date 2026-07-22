@@ -26,10 +26,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={nunito.variable}>
       <head>
-        {/* 2. PayHere Script  */}
-        <script src="https://www.payhere.lk/lib/payhere.js" async></script>
       </head>
       <body className={nunito.className}>
+        {/* 2. PayHere Script */}
+        <Script src="https://www.payhere.lk/lib/payhere.js" strategy="beforeInteractive" />
         <AuthProvider>
           <ToastProvider>
             <ConfirmProvider>
