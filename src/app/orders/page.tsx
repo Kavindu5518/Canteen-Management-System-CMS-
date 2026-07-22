@@ -129,6 +129,7 @@ export default function OrdersPage() {
 
     try {
       await supabase.from('orders').update({ status: 'cancelled' }).eq('id', orderId)
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o))
       showToast('success', 'Order cancelled successfully.')
     } catch (err) {
       console.error(err)
