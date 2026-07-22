@@ -51,49 +51,62 @@ export default function CheckoutPage() {
 
   // 2. PayHere Payment පටන් ගන්නා function එක මෙතනට එනවා
   async function startPayHerePayment(orderNum: string, amount: number) {
-    const hash = await generatePayHereHash(orderNum, amount);
-    const { data: { user } } = await supabase.auth.getUser();
+    try {
+      const config = await generatePayHereHash(orderNum, amount);
+      const { data: { user } } = await supabase.auth.getUser();
 
-    const payment = {
-      sandbox: true, // Testing නිසා true දාන්න. Live යනකොට false කරන්න.
-      merchant_id: process.env.NEXT_PUBLIC_PAYHERE_MERCHANT_ID,
-      return_url: `${window.location.origin}/orders`,
-      cancel_url: `${window.location.origin}/checkout`,
-      notify_url: 'https://canteen-management-system-cms-v9yw.vercel.app/api/payhere-notify',
-      order_id: orderNum,
-      items: 'Canteen Food Order',
-      amount: amount,
-      currency: 'LKR',
-      hash: hash,
-      first_name: user?.user_metadata?.full_name?.split(' ')[0] || 'Customer',
-      last_name: user?.user_metadata?.full_name?.split(' ')[1] || 'User',
-      email: user?.email || '',
-      phone: '0771234567',
-      address: 'Campus Canteen',
-      city: 'Colombo',
-      country: 'Sri Lanka',
-    };
-
-    if (typeof window !== 'undefined' && (window as any).payhere) {
-      (window as any).payhere.onCompleted = function onCompleted(orderId: string) {
-        setOrderId(orderId);
-        sessionStorage.removeItem('cart');
-        setSuccess(true);
+      const payment = {
+        sandbox: config.sandbox,
+        merchant_id: config.merchantId,
+        return_url: `${window.location.origin}/orders`,
+        cancel_url: `${window.location.origin}/checkout`,
+        notify_url: `${window.location.origin}/api/payhere-notify`,
+        order_id: orderNum,
+        items: 'Canteen Food Order',
+        amount: amount,
+        currency: config.currency,
+        hash: config.hash,
+        first_name: user?.user_metadata?.full_name?.split(' ')[0] || 'Customer',
+        last_name: user?.user_metadata?.full_name?.split(' ')[1] || 'User',
+        email: user?.email || '',
+        phone: '0771234567',
+        address: 'Campus Canteen',
+        city: 'Colombo',
+        country: 'Sri Lanka',
       };
 
-      (window as any).payhere.onDismissed = function onDismissed() {
-        console.log("PayHere payment modal closed by user.");
-        showToast('info', 'Payment process was cancelled.');
-      };
+      if (!payment.merchant_id || !payment.hash) {
+        throw new Error('PayHere credentials or hash are invalid. Please check configuration.');
+      }
 
-      (window as any).payhere.onError = function onError(error: any) {
-        console.error("PayHere Error:", error);
-        showToast('error', 'Payment Error: ' + (error || 'Transaction failed'));
-      };
+      if (typeof window !== 'undefined' && (window as any).payhere) {
+        (window as any).payhere.onCompleted = function onCompleted(orderId: string) {
+          setOrderId(orderId);
+          sessionStorage.removeItem('cart');
+          setSuccess(true);
+        };
 
-      (window as any).payhere.startPayment(payment);
-    } else {
-      showToast('error', 'PayHere script is not loaded. Please refresh the page.')
+        (window as any).payhere.onDismissed = function onDismissed() {
+          console.log("PayHere payment modal closed by user.");
+          showToast('info', 'Payment process was cancelled.');
+          setPlacing(false);
+        };
+
+        (window as any).payhere.onError = function onError(error: any) {
+          console.error("PayHere Error:", error);
+          showToast('error', 'Payment Error: ' + (error || 'Transaction failed'));
+          setPlacing(false);
+        };
+
+        (window as any).payhere.startPayment(payment);
+      } else {
+        showToast('error', 'PayHere script is not loaded. Please refresh the page.');
+        setPlacing(false);
+      }
+    } catch (err: any) {
+      console.error("PayHere Init Error:", err);
+      showToast('error', err?.message || 'Failed to initialize PayHere payment.');
+      setPlacing(false);
     }
   }
 
