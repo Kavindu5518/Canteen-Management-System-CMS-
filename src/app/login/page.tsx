@@ -146,7 +146,20 @@ export default function LoginPage() {
     }
   }
 
-  if (authLoading) return null // Prevent flashing
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+        <div className="w-16 h-16 bg-primary/10 rounded-3xl flex items-center justify-center mb-4 animate-pulse">
+          <UtensilsCrossed size={32} className="text-primary" />
+        </div>
+        <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mt-2" 
+          style={{borderWidth:'3px'}}/>
+        <p className="text-gray-400 text-xs font-bold mt-4 uppercase tracking-widest">
+          {mode === 'signin' ? 'Signing in...' : mode === 'forgot' ? 'Sending link...' : 'Registering...'}
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col justify-center px-6 py-12 min-h-screen">

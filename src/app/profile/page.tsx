@@ -19,7 +19,6 @@ const SECTIONS = [
   {
     title: 'SECURITY & ACCESS', items: [
       { icon: <Lock size={18} className="text-green-600" />, label: 'Password & Security', sub: 'Change password and 2FA', bg: 'bg-green-50', href: '/profile/security' },
-      { icon: <Monitor size={18} className="text-purple-500" />, label: 'Logged Devices', sub: 'Monitor active sessions', bg: 'bg-purple-50', href: '/profile/devices' },
     ]
   },
 ]

@@ -1,6 +1,6 @@
 'use client'
-import { useState, useRef } from 'react'
-import { Star, X, Loader2, MessageSquare, Camera, Check } from 'lucide-react'
+import { useState } from 'react'
+import { Star, X, Loader2, MessageSquare, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/lib/toast'
@@ -19,39 +19,15 @@ export default function FeedbackModal({ order, onClose, onSuccess }: FeedbackMod
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState('')
   const [selectedTags, setTags] = useState<string[]>([])
-  const [photo, setPhoto] = useState<File | null>(null)
-  const [photoPreview, setPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const toggleTag = (tag: string) => {
     setTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
   }
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setPhoto(file)
-      setPreview(URL.createObjectURL(file))
-    }
-  }
-
   async function handleSubmit() {
     setLoading(true)
     try {
-      let photoUrl = ''
-      if (photo) {
-        const filePath = `${order.id}_${Date.now()}`
-        const { error: uploadError } = await supabase.storage
-          .from('feedbacks')
-          .upload(filePath, photo)
-          
-        if (!uploadError) {
-          const { data } = supabase.storage.from('feedbacks').getPublicUrl(filePath)
-          photoUrl = data.publicUrl
-        }
-      }
-
       // 1. Save feedback to 'order_feedback' table
       await supabase.from('order_feedback').insert([{
         orderId: order.id,
@@ -61,7 +37,6 @@ export default function FeedbackModal({ order, onClose, onSuccess }: FeedbackMod
         rating,
         comment,
         tags: selectedTags,
-        photoUrl: photoUrl,
         items: order.items?.map((i: any) => i.name) || [],
       }])
 
@@ -164,35 +139,6 @@ export default function FeedbackModal({ order, onClose, onSuccess }: FeedbackMod
             rows={3} className="input-field resize-none !rounded-2xl" />
         </div>
 
-        {/* Photo Upload */}
-        <div className="mb-8">
-          <p className="text-sm font-bold text-gray-800 mb-2">Add a photo (Optional)</p>
-          <div className="flex items-center gap-4">
-            <button onClick={() => fileInputRef.current?.click()}
-              className="w-20 h-20 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-primary hover:text-primary transition-all overflow-hidden relative group">
-              {photoPreview ? (
-                <>
-                  <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Camera size={20} className="text-white" />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Camera size={20} />
-                  <span className="text-[10px] font-bold">Add</span>
-                </>
-              )}
-            </button>
-            <input type="file" ref={fileInputRef} onChange={handlePhotoChange} accept="image/*" className="hidden" />
-            {photoPreview && (
-              <div className="flex-1">
-                <p className="text-xs font-bold text-gray-900 truncate">{photo?.name}</p>
-                <button onClick={() => { setPhoto(null); setPreview(null) }} className="text-primary text-[10px] font-black uppercase mt-1">Remove Photo</button>
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* Submit */}
         <div className="flex gap-3">
