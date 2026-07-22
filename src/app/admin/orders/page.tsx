@@ -219,26 +219,21 @@ function OrderRow({ order, updating, statusColors, onUpdate, onCollectCash }: {
         
         {/* Header: Token, Customer & Badges */}
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0 border border-primary/20">
-              <span className="text-primary text-sm font-black tracking-tight">{order.orderNumber.replace('#', '').slice(-3)}</span>
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-black text-gray-900 truncate">{order.userName}</p>
-                <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">
-                  {order.orderNumber}
-                </span>
-              </div>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">
-                {formatTime(order.createdAt || new Date())} · <span className="font-semibold text-gray-700">{delivery}</span>
-              </p>
-            </div>
+          <div className="min-w-0">
+            <h3 className="text-base font-black text-gray-900 tracking-tight">{order.orderNumber}</h3>
+            <p className="text-sm text-gray-500 font-bold mt-1">{order.userName}</p>
+            <p className="text-xs text-gray-400 font-medium mt-1">
+              {formatTime(order.createdAt || new Date())} · <span className="font-semibold text-gray-700">{delivery}</span>
+            </p>
           </div>
 
           {/* Badges */}
           <div className="flex flex-col items-end gap-1.5 shrink-0">
-            {isUnpaidCash ? (
+            {order.status === 'cancelled' ? (
+              <span className="inline-flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-xl bg-red-50 text-red-700 border border-red-200 uppercase tracking-widest">
+                CANCELLED
+              </span>
+            ) : isUnpaidCash ? (
               <span className="inline-flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-widest">
                 <Banknote size={11} className="text-amber-500 shrink-0" />
                 UNPAID (CASH)

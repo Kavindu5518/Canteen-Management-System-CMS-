@@ -100,7 +100,9 @@ export default function InvoiceModal({ order, onClose }: InvoiceModalProps) {
                 {order.paymentMethod === 'cash' ? 'Cash on Counter' : order.paymentMethod === 'card' ? 'Card / Online' : 'QR Scan'}
               </p>
               <p className="text-[11px] font-extrabold mt-0.5">
-                {order.paymentMethod === 'cash' && order.status !== 'delivered' && order.paymentStatus !== 'paid' ? (
+                {order.status === 'cancelled' ? (
+                  <span className="text-red-600">Status: Cancelled</span>
+                ) : order.paymentMethod === 'cash' && order.status !== 'delivered' && order.paymentStatus !== 'paid' ? (
                   <span className="text-amber-600">Status: UNPAID (CASH)</span>
                 ) : (
                   <span className="text-green-600">Status: Paid</span>

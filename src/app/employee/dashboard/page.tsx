@@ -463,21 +463,21 @@ export default function EmployeeDashboard() {
                   <div key={order.id} className="bg-white rounded-[28px] p-5 shadow-card border border-gray-100 flex flex-col gap-4 transition-all">
                     {/* Top Header */}
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center shrink-0 border border-gray-200/60 font-black text-gray-900 text-sm">
-                          {order.orderNumber.replace('#', '').slice(-3)}
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-black text-gray-900 truncate leading-tight">{order.userName}</h3>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                            {order.items?.length || 0} ITEM{(order.items?.length || 0) > 1 ? 'S' : ''} · {formatTime(new Date(order.createdAt))}
-                          </p>
-                        </div>
+                      <div className="min-w-0">
+                        <h3 className="text-base font-black text-gray-900 tracking-tight">{order.orderNumber}</h3>
+                        <p className="text-sm text-gray-500 font-bold mt-1">{order.userName}</p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                          {order.items?.length || 0} ITEM{(order.items?.length || 0) > 1 ? 'S' : ''} · {formatTime(new Date(order.createdAt))}
+                        </p>
                       </div>
 
                       {/* Status Badges */}
                       <div className="flex flex-col items-end gap-1 shrink-0">
-                        {isCashUnpaid ? (
+                        {order.status === 'cancelled' ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-xl bg-red-50 text-red-700 border border-red-200 uppercase tracking-widest">
+                            CANCELLED
+                          </span>
+                        ) : isCashUnpaid ? (
                           <span className="inline-flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-widest">
                             <Banknote size={11} className="text-amber-500 shrink-0" />
                             UNPAID (CASH)

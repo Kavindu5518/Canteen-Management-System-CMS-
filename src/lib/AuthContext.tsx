@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initialized = useRef(false)
 
   const fetchUserData = async (uid: string, email?: string, fullName?: string) => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('users')
