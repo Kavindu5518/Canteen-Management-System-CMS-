@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Search, Plus, Truck, Phone, Mail, MapPin, X, Loader2, Edit2, Trash2, Calendar, AlertCircle, PackageCheck, Coins } from 'lucide-react'
 import AdminBottomNav from '@/components/admin/AdminBottomNav'
+import CustomSelect from '@/components/ui/CustomSelect'
 import { cn, formatPrice } from '@/lib/utils'
 import { useToast } from '@/lib/toast'
 import { useConfirm } from '@/lib/confirm'
@@ -270,10 +271,16 @@ function SupplyConfirmModal({ supplier, inventoryItems, onConfirm, onClose, load
           <div className="w-full space-y-4 mb-8">
             <div className="text-left">
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2 mb-1.5 block">Inventory Item</label>
-              <select value={itemId} onChange={e => setItemId(e.target.value)} className="input-field py-4 bg-gray-50 border-transparent focus:bg-white focus:border-primary transition-all appearance-none">
-                <option value="">Select an item...</option>
-                {inventoryItems.map(i => <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}
-              </select>
+              <CustomSelect
+                value={itemId}
+                onChange={setItemId}
+                placeholder="Select an item..."
+                options={inventoryItems.map(i => ({
+                  value: i.id,
+                  label: `${i.name} (${i.unit})`
+                }))}
+                className="w-full text-left"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
