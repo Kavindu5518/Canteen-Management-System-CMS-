@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/AuthContext'
 // Public paths - no auth needed
 const PUBLIC = ['/login']
 // Paths that bypass ALL routing logic
-const BYPASS = ['/admin-setup']
+const BYPASS = ['/admin-setup', '/auth']
 // Admin-only paths
 const ADMIN_PATHS = ['/admin']
 // Employee-only paths
