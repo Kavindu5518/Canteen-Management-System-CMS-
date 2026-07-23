@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/AuthContext'
 import {
   Search, ShoppingCart, Star,
-  Coffee, UtensilsCrossed, Moon, Cookie, Plus, Wifi, WifiOff
+  Coffee, UtensilsCrossed, Moon, Cookie, Plus, Wifi, WifiOff, CupSoda
 } from 'lucide-react'
 import CustomerBottomNav from '@/components/customer/CustomerBottomNav'
 import { cn, formatPrice } from '@/lib/utils'
@@ -28,6 +28,7 @@ const CATEGORIES = [
   { id: 'lunch', label: 'Lunch', icon: <UtensilsCrossed size={18} /> },
   { id: 'dinner', label: 'Dinner', icon: <Moon size={18} /> },
   { id: 'snacks', label: 'Snacks', icon: <Cookie size={18} /> },
+  { id: 'beverages', label: 'Beverages', icon: <CupSoda size={18} /> },
 ]
 
 export default function MenuPage() {

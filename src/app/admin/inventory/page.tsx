@@ -1,8 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Search, Plus, AlertTriangle, Package, Edit2, Trash2, X, Loader2, TrendingUp, Truck } from 'lucide-react'
+import { Search, Plus, AlertTriangle, Package, Edit2, Trash2, X, Loader2, TrendingUp, Truck, ChevronDown } from 'lucide-react'
 import AdminBottomNav from '@/components/admin/AdminBottomNav'
+import CustomSelect from '@/components/ui/CustomSelect'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/lib/toast'
 import { useConfirm } from '@/lib/confirm'
@@ -294,10 +295,26 @@ function InvModal({ item, onSave, onClose, loading }: { item: InventoryItem | nu
 
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5 scrollbar-hide">
-          {[{ l: 'Item Name', v: name, s: setName, p: 'e.g. Rice', t: 'text' }, { l: 'Category', v: cat, s: setCat, p: 'e.g. Grains', t: 'text' }, { l: 'Unit', v: unit, s: setUnit, p: 'kg / l / pcs', t: 'text' }, { l: 'Current Stock', v: current, s: setCurrent, p: '0', t: 'number' }, { l: 'Min Stock Level', v: min, s: setMin, p: '0', t: 'number' }, { l: 'Max Stock Level', v: max, s: setMax, p: '0', t: 'number' }, { l: 'Unit Price (Rs)', v: price, s: setPrice, p: '0', t: 'number' }].map(({ l, v, s, p, t }) => (
+          {[{ l: 'Item Name', v: name, s: setName, p: 'e.g. Rice', t: 'text' }, { l: 'Category', v: cat, s: setCat, p: 'e.g. Grains', t: 'select' }, { l: 'Unit', v: unit, s: setUnit, p: 'kg / l / pcs', t: 'text' }, { l: 'Current Stock', v: current, s: setCurrent, p: '0', t: 'number' }, { l: 'Min Stock Level', v: min, s: setMin, p: '0', t: 'number' }, { l: 'Max Stock Level', v: max, s: setMax, p: '0', t: 'number' }, { l: 'Unit Price (Rs)', v: price, s: setPrice, p: '0', t: 'number' }].map(({ l, v, s, p, t }) => (
             <div key={l}>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-2">{l}</label>
-              <input type={t} value={v} onChange={e => s(e.target.value)} placeholder={p} className="input-field py-4 bg-gray-50 border-transparent focus:bg-white focus:border-primary transition-all" />
+              {t === 'select' ? (
+                <CustomSelect
+                  value={v}
+                  onChange={s}
+                  options={[
+                    { value: 'Grains', label: 'Grains' },
+                    { value: 'Protein', label: 'Protein' },
+                    { value: 'Dairy', label: 'Dairy' },
+                    { value: 'Oils', label: 'Oils' },
+                    { value: 'Condiments', label: 'Condiments' },
+                    { value: 'Beverages', label: 'Beverages' }
+                  ]}
+                  className="w-full"
+                />
+              ) : (
+                <input type={t} value={v} onChange={e => s(e.target.value)} placeholder={p} className="input-field py-4 bg-gray-50 border-transparent focus:bg-white focus:border-primary transition-all" />
+              )}
             </div>
           ))}
         </div>
