@@ -347,9 +347,10 @@ function SupModal({ supplier, onSave, onClose, loading }: { supplier: Supplier |
   const [phone, setPhone] = useState(supplier?.phone ?? '')
   const [email, setEmail] = useState(supplier?.email ?? '')
   const [address, setAddress] = useState(supplier?.address ?? '')
-  const [cats, setCats] = useState(supplier?.itemCategories?.join(', ') ?? '')
+  const [selectedCats, setSelectedCats] = useState<string[]>(supplier?.itemCategories ?? [])
+
   return (
-    <div className="fixed inset-0 bg-black/60 z-[100] flex items-end justify-center animate-in fade-in duration-300"
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[100] flex items-end justify-center animate-in fade-in duration-300"
       onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="bg-white w-full max-w-mobile rounded-t-[40px] flex flex-col max-h-[92vh] shadow-2xl animate-in slide-in-from-bottom duration-500 overflow-hidden">
         {/* Header */}
@@ -362,18 +363,52 @@ function SupModal({ supplier, onSave, onClose, loading }: { supplier: Supplier |
 
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5 scrollbar-hide text-left">
-          {[{ l: 'Company Name', v: name, s: setName, p: 'Lanka Grains Co.' }, { l: 'Contact Person', v: contact, s: setContact, p: 'Ranjith Perera' }, { l: 'Phone', v: phone, s: setPhone, p: '011-XXX-XXXX' }, { l: 'Email', v: email, s: setEmail, p: 'info@company.lk' }, { l: 'Address', v: address, s: setAddress, p: 'Street, City' }, { l: 'Item Categories (comma-separated)', v: cats, s: setCats, p: 'Rice, Dhal, Flour' }].map(({ l, v, s, p }) => (
+          {[{ l: 'Company Name', v: name, s: setName, p: 'Lanka Grains Co.' },
+          { l: 'Contact Person', v: contact, s: setContact, p: 'Ranjith Perera' },
+          { l: 'Phone', v: phone, s: setPhone, p: '011-XXX-XXXX' },
+          { l: 'Email', v: email, s: setEmail, p: 'info@company.lk' },
+          { l: 'Address', v: address, s: setAddress, p: 'Street, City' }
+          ].map(({ l, v, s, p }) => (
             <div key={l}>
               <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-2">{l}</label>
               <input value={v} onChange={e => s(e.target.value)} placeholder={p} className="input-field py-4 bg-gray-50 border-transparent focus:bg-white focus:border-primary transition-all" />
             </div>
           ))}
+
+          {/* Premium Multi-Select Tag Grid */}
+          <div>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-2">Item Categories</label>
+            <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-3xl border border-transparent">
+              {['Grains', 'Protein', 'Dairy', 'Oils', 'Condiments', 'Beverages'].map(cat => {
+                const isSelected = selectedCats.includes(cat)
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCats(prev =>
+                        prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+                      )
+                    }}
+                    className={cn(
+                      'px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all active:scale-95',
+                      isSelected
+                        ? 'bg-primary text-white border-primary shadow-lg shadow-primary/30'
+                        : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'
+                    )}
+                  >
+                    {cat}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
         <div className="px-6 pt-4 pb-12 border-t border-gray-50 bg-white flex gap-4 shrink-0">
           <button onClick={onClose} className="btn-outline flex-1 py-4 font-black uppercase text-[11px] tracking-widest text-gray-400 border-gray-100">Cancel</button>
-          <button onClick={() => onSave({ name, contactPerson: contact, phone, email, address, itemCategories: cats.split(',').map(c => c.trim()).filter(Boolean) })}
+          <button onClick={() => onSave({ name, contactPerson: contact, phone, email, address, itemCategories: selectedCats })}
             disabled={loading || !name} className="btn-primary flex-1 py-4 font-black uppercase text-[11px] tracking-widest gap-2">
             {loading ? <Loader2 size={16} className="animate-spin" /> : 'Save Supplier'}
           </button>
