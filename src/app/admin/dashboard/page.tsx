@@ -228,16 +228,20 @@ export default function AdminDashboard() {
           <span className="text-blue-500 text-[10px] font-bold mt-1 block">{pendingCount} pending</span>
         </div>
 
-        <div className={cn('rounded-3xl p-4 shadow-card', lowStock > 0 ? 'bg-red-50 border border-red-100' : 'bg-white')}>
+        <Link href="/admin/inventory" className={cn('rounded-3xl p-4 shadow-card transition-all block', lowStock > 0 ? 'bg-red-50 border border-red-100' : 'bg-white')}>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-gray-400 text-xs font-bold">Stock</p>
-            <div className="w-8 h-8 bg-red-100 rounded-xl flex items-center justify-center">
-              <AlertTriangle size={14} className="text-red-500" />
+            <p className="text-gray-400 text-xs font-bold">Stock Alerts</p>
+            <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center', lowStock > 0 ? 'bg-red-100' : 'bg-green-50')}>
+              <AlertTriangle size={14} className={lowStock > 0 ? 'text-red-500' : 'text-green-500'} />
             </div>
           </div>
-          <p className="text-red-500 text-lg font-extrabold leading-none">{loading ? '—' : lowStock} items</p>
-          <span className="text-red-400 text-[10px] font-semibold underline mt-1 block">View details</span>
-        </div>
+          <p className={cn('text-lg font-extrabold leading-none', lowStock > 0 ? 'text-red-500' : 'text-green-600')}>
+            {loading ? '—' : lowStock} items
+          </p>
+          <span className={cn('text-[10px] font-semibold mt-1 block', lowStock > 0 ? 'text-red-400 underline' : 'text-gray-400')}>
+            {lowStock > 0 ? 'View details' : 'All stocks healthy'}
+          </span>
+        </Link>
 
         <div onClick={() => setShowConfig(true)} className="bg-gray-900 rounded-3xl p-4 shadow-card card-press cursor-pointer">
           <div className="flex items-center justify-between mb-2">

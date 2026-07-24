@@ -44,7 +44,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
       {isOpen && options && (
-        <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center p-6 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200" style={{ zIndex: 9999 }}>
           <div className="bg-white w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="p-8">
               <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center mb-5">
