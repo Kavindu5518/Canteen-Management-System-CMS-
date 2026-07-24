@@ -85,19 +85,22 @@ export default function AdminSuppliersPage() {
     setSaving(false); setModal(false); setEditing(null)
   }
 
-  async function handleConfirmSupply(supplierId: string, itemId: string, qty: number, totalCost: number) {
+  async function handleConfirmSupply(supplierId: string, itemId: string, qty: number, unitPrice: number) {
     setSaving(true)
+    const totalCost = qty * unitPrice
     try {
-      // 1. Update Inventory
+      // 1. Update Inventory stock + unit price directly
       const item = inventory.find(i => i.id === itemId)
       if (item) {
-        await supabase.from('inventory').update({
+        const { error } = await supabase.from('inventory').update({
           currentStock: (item.currentStock || 0) + qty,
+          unitPrice: unitPrice,
           lastRestocked: new Date().toISOString()
         }).eq('id', itemId)
+        if (error) throw error
       }
 
-      // 2. Update Supplier Balance
+      // 2. Update Supplier outstanding balance
       const sup = suppliers.find(s => s.id === supplierId)
       if (sup) {
         await supabase.from('suppliers').update({
@@ -118,11 +121,17 @@ export default function AdminSuppliersPage() {
         createdAt: new Date().toISOString()
       }])
 
-      showToast('success', 'Supply confirmed and inventory updated!')
+      // 4. Refresh local state immediately
+      const { data: latestInv } = await supabase.from('inventory').select('*')
+      if (latestInv) setInventory(latestInv as InventoryItem[])
+      const { data: latestSup } = await supabase.from('suppliers').select('*')
+      if (latestSup) setSuppliers(latestSup as Supplier[])
+
+      showToast('success', `Supply confirmed! Inventory price updated to Rs.${unitPrice}.`)
       setSupplyMod(null)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      showToast('error', 'Failed to confirm supply.')
+      showToast('error', 'Failed to confirm supply: ' + (err.message || 'Unknown error'))
     } finally {
       setSaving(false)
     }
@@ -281,13 +290,16 @@ export default function AdminSuppliersPage() {
 function SupplyConfirmModal({ supplier, inventoryItems, onConfirm, onClose, loading }: {
   supplier: Supplier;
   inventoryItems: InventoryItem[];
-  onConfirm: (supId: string, itemId: string, qty: number, cost: number) => void;
+  onConfirm: (supId: string, itemId: string, qty: number, unitPrice: number) => void;
   onClose: () => void;
   loading: boolean;
 }) {
   const [itemId, setItemId] = useState('')
   const [qty, setQty] = useState('')
-  const [cost, setCost] = useState('')
+  const [unitPrice, setUnitPrice] = useState('')
+
+  const selectedItem = inventoryItems.find(i => i.id === itemId)
+  const totalCost = +qty > 0 && +unitPrice > 0 ? (+qty * +unitPrice).toFixed(2) : null
 
   return (
     <div className="fixed inset-0 bg-black/70 z-[110] flex items-center justify-center p-6 backdrop-blur-sm animate-in fade-in duration-300">
@@ -299,7 +311,7 @@ function SupplyConfirmModal({ supplier, inventoryItems, onConfirm, onClose, load
           <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Confirm Supply</h2>
           <p className="text-gray-400 text-xs font-bold mb-8 uppercase tracking-widest">Entry from {supplier.name}</p>
 
-          <div className="w-full space-y-4 mb-8">
+          <div className="w-full space-y-4 mb-4">
             <div className="text-left">
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2 mb-1.5 block">Inventory Item</label>
               <CustomSelect
@@ -316,21 +328,30 @@ function SupplyConfirmModal({ supplier, inventoryItems, onConfirm, onClose, load
 
             <div className="grid grid-cols-2 gap-4">
               <div className="text-left">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2 mb-1.5 block">Quantity</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2 mb-1.5 block">Quantity {selectedItem ? `(${selectedItem.unit})` : ''}</label>
                 <input type="number" value={qty} onChange={e => setQty(e.target.value)} placeholder="0" className="input-field py-4 bg-gray-50 border-transparent focus:bg-white focus:border-primary transition-all" />
               </div>
               <div className="text-left">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2 mb-1.5 block">Total Cost</label>
-                <input type="number" value={cost} onChange={e => setCost(e.target.value)} placeholder="0.00" className="input-field py-4 bg-gray-50 border-transparent focus:bg-white focus:border-primary transition-all" />
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2 mb-1.5 block">Unit Price (Rs)</label>
+                <input type="number" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="0.00" className="input-field py-4 bg-gray-50 border-transparent focus:bg-white focus:border-primary transition-all" />
               </div>
             </div>
+
+            {/* Live Preview */}
+            {totalCost && (
+              <div className="bg-primary/5 border border-primary/20 rounded-2xl px-4 py-3 text-left">
+                <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Total Cost Preview</p>
+                <p className="text-lg font-black text-gray-900">Rs. {totalCost}</p>
+                <p className="text-[10px] text-gray-400 font-bold mt-0.5">Inventory price will update to Rs.{unitPrice}/{selectedItem?.unit}</p>
+              </div>
+            )}
           </div>
 
-          <div className="flex gap-3 w-full">
+          <div className="flex gap-3 w-full mt-4">
             <button onClick={onClose} className="btn-outline flex-1 py-4 font-black uppercase text-[11px] tracking-widest text-gray-400 border-gray-100">Cancel</button>
             <button
-              onClick={() => onConfirm(supplier.id, itemId, +qty, +cost)}
-              disabled={!itemId || !qty || !cost || loading}
+              onClick={() => onConfirm(supplier.id, itemId, +qty, +unitPrice)}
+              disabled={!itemId || !qty || !unitPrice || loading}
               className="btn-primary flex-1 py-4 font-black uppercase text-[11px] tracking-widest shadow-primary transition-all flex items-center justify-center gap-2">
               {loading ? <Loader2 className="animate-spin" size={16} /> : 'Confirm'}
             </button>
