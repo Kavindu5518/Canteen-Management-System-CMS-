@@ -26,12 +26,23 @@ export default function CheckoutPage() {
   const [orderTotal, setOrderTotal] = useState(0)
   const [showAddressModal, setShowAddressModal] = useState(false)
   const [tempAddress, setTempAddress] = useState(deliveryAddress)
+  const [inventory, setInventory] = useState<any[]>([])
 
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem('cart')
       if (raw) setCart(JSON.parse(raw))
     } catch { }
+
+    const fetchInventory = async () => {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+      if (data && !error) {
+        setInventory(data)
+      }
+    }
+    fetchInventory()
   }, [])
 
   const subtotal = cart.reduce((s, i) => s + i.menuItem.price * i.quantity, 0)
@@ -41,6 +52,15 @@ export default function CheckoutPage() {
 
   function updateQty(id: string, delta: number) {
     setCart(prev => {
+      const item = prev.find(c => c.menuItem.id === id)
+      if (item && delta === 1 && item.menuItem.category === 'beverages') {
+        const invItem = inventory.find(i => i.name.toLowerCase() === item.menuItem.name.toLowerCase())
+        if (invItem && item.quantity + 1 > (invItem.currentStock ?? 0)) {
+          showToast('error', `Only ${invItem.currentStock} items left in stock!`)
+          return prev
+        }
+      }
+
       const updated = prev.map(c =>
         c.menuItem.id === id ? { ...c, quantity: c.quantity + delta } : c
       ).filter(c => c.quantity > 0)
@@ -114,6 +134,22 @@ export default function CheckoutPage() {
     if (cart.length === 0) return
     setPlacing(true)
     try {
+      // Live stock check for Beverages
+      for (const item of cart) {
+        if (item.menuItem.category === 'beverages') {
+          const { data: invData } = await supabase
+            .from('inventory')
+            .select('currentStock')
+            .eq('name', item.menuItem.name)
+            .maybeSingle()
+          
+          const currentStock = invData?.currentStock ?? 0
+          if (item.quantity > currentStock) {
+            throw new Error(`Sorry, there is not enough stock for ${item.menuItem.name}. Only ${currentStock} left.`);
+          }
+        }
+      }
+
       const { data: { user } } = await supabase.auth.getUser()
       const orderNum = `ORD-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100).toString().padStart(2, '0')}`
 

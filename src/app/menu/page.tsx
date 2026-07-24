@@ -11,6 +11,7 @@ import { cn, formatPrice } from '@/lib/utils'
 import type { MenuItem, FoodCategory, CartItem } from '@/types'
 import { useRouter } from 'next/navigation'
 import ItemDetailModal from '@/components/customer/ItemDetailModal'
+import { useToast } from '@/lib/toast'
 
 /* ── Demo data fallback ── */
 const DEMO_ITEMS: MenuItem[] = [
@@ -34,7 +35,9 @@ const CATEGORIES = [
 export default function MenuPage() {
   const router = useRouter()
   const { userData } = useAuth()
+  const { showToast } = useToast()
   const [items, setItems] = useState<MenuItem[]>([])
+  const [inventory, setInventory] = useState<any[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [search, setSearch] = useState('')
   const [activeCategory, setActive] = useState('all')
@@ -73,7 +76,17 @@ export default function MenuPage() {
       setLoading(false)
     }
 
+    const fetchInventory = async () => {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+      if (data && !error) {
+        setInventory(data)
+      }
+    }
+
     fetchItems()
+    fetchInventory()
 
     const subscription = supabase
       .channel('public:menu_items')
@@ -82,8 +95,16 @@ export default function MenuPage() {
       })
       .subscribe()
 
+    const subInv = supabase
+      .channel('public:inventory_menu')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => {
+        fetchInventory()
+      })
+      .subscribe()
+
     return () => {
       supabase.removeChannel(subscription)
+      supabase.removeChannel(subInv)
     }
   }, [])
 
@@ -101,15 +122,40 @@ export default function MenuPage() {
     return matchCat && matchQ
   })
 
+  // Dynamically map stock state for beverages
+  const mappedFiltered = filtered.map(item => {
+    if (item.category === 'beverages') {
+      const invItem = inventory.find(i => i.name.toLowerCase() === item.name.toLowerCase())
+      if (invItem) {
+        const outOfStock = (invItem.currentStock ?? 0) <= 0
+        return { ...item, outOfStock, stock: invItem.currentStock } as any
+      }
+    }
+    return item
+  })
+
   // Available (not out of stock) vs unavailable
-  const available = filtered.filter(i => i.available && !i.outOfStock)
-  const unavailable = filtered.filter(i => !i.available || i.outOfStock)
+  const available = mappedFiltered.filter(i => i.available && !i.outOfStock)
+  const unavailable = mappedFiltered.filter(i => !i.available || i.outOfStock)
 
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
   const cartTotal = cart.reduce((s, i) => s + i.menuItem.price * i.quantity, 0)
 
   function addToCart(item: MenuItem) {
     if (!item.available || item.outOfStock) return
+
+    // Beverage stock limit check
+    if (item.category === 'beverages') {
+      const invItem = inventory.find(i => i.name.toLowerCase() === item.name.toLowerCase())
+      if (invItem) {
+        const currentQty = getQty(item.id)
+        if (currentQty + 1 > (invItem.currentStock ?? 0)) {
+          showToast('error', `Only ${invItem.currentStock} items left in stock!`)
+          return
+        }
+      }
+    }
+
     setCart(prev => {
       const updated = prev.find(c => c.menuItem.id === item.id)
         ? prev.map(c => c.menuItem.id === item.id ? { ...c, quantity: c.quantity + 1 } : c)
@@ -300,7 +346,14 @@ function FoodCard({ item, qty, onAdd, onRemove, onSelect }: {
         <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{item.description}</p>
 
         <div className="flex items-center justify-between mt-3">
-          <span className="text-primary font-extrabold text-base">{formatPrice(item.price)}</span>
+          <div className="flex flex-col">
+            <span className="text-primary font-extrabold text-base">{formatPrice(item.price)}</span>
+            {(item as any).stock !== undefined && (item as any).stock !== null && (item as any).stock > 0 && (item as any).stock <= 10 && (
+              <span className="text-[10px] text-amber-500 font-bold mt-0.5 animate-pulse">
+                Only {(item as any).stock} left
+              </span>
+            )}
+          </div>
 
           {isUnavailable ? (
             <span className="text-xs text-gray-400 font-semibold bg-gray-100 px-3 py-2 rounded-xl">

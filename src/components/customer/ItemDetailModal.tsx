@@ -163,7 +163,14 @@ export default function ItemDetailModal({ item, onClose, onAddToCart }: ItemDeta
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Total Price</p>
-              <p className="text-xl font-black text-primary">{formatPrice(item.price)}</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-xl font-black text-primary">{formatPrice(item.price)}</p>
+                {(item as any).stock !== undefined && (item as any).stock !== null && (item as any).stock > 0 && (item as any).stock <= 10 && (
+                  <span className="text-[10px] text-amber-500 font-bold uppercase tracking-widest animate-pulse">
+                    ({(item as any).stock} left)
+                  </span>
+                )}
+              </div>
             </div>
             <button 
               onClick={() => { onAddToCart(); onClose(); }}
