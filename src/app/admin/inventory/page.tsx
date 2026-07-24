@@ -133,7 +133,7 @@ export default function AdminInventoryPage() {
         <div className="mx-5 mt-3 bg-red-50 border border-red-200 rounded-[32px] px-6 py-4 flex items-center justify-between gap-3 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
-               <AlertTriangle size={24} className="text-red-500" />
+              <AlertTriangle size={24} className="text-red-500" />
             </div>
             <div>
               <p className="text-red-900 text-sm font-black tracking-tight">{lowStock.length} items need restocking</p>
@@ -178,15 +178,15 @@ export default function AdminInventoryPage() {
             </div>
             <h2 className="text-lg font-black text-white tracking-tight">Usage Analytics</h2>
           </div>
-          <div className="flex items-end gap-2 h-32 relative z-10">
+          <div className="flex items-end gap-2 h-32 relative">
             {[40, 65, 30, 85, 50, 90, 75].map((h, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
-                <div className="w-full bg-white/5 rounded-t-xl relative overflow-hidden h-full">
+              <div key={i} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
+                <div className="w-full bg-white/5 rounded-t-xl relative overflow-hidden h-24">
                   <div className="absolute bottom-0 w-full bg-primary rounded-t-xl transition-all duration-1000 ease-out" style={{ height: `${h}%` }}>
                     <div className="absolute top-0 left-0 w-full h-1 bg-white/20" />
                   </div>
                 </div>
-                <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Day {i + 1}</span>
+                <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">Day {i + 1}</span>
               </div>
             ))}
           </div>

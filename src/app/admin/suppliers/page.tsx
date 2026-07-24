@@ -45,7 +45,7 @@ export default function AdminSuppliersPage() {
     const subSup = supabase.channel('admin_suppliers')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'suppliers' }, fetchSuppliers)
       .subscribe()
-    
+
     const subInv = supabase.channel('admin_inv_suppliers')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, fetchInventory)
       .subscribe()
@@ -123,6 +123,29 @@ export default function AdminSuppliersPage() {
     } catch (err) {
       console.error(err)
       showToast('error', 'Failed to confirm supply.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleClearBalance(supplier: Supplier) {
+    const isConfirmed = await confirm({
+      title: 'Clear Supplier Balance',
+      message: `Are you sure you want to clear the outstanding balance of ${formatPrice(supplier.outstandingAmount || 0)} for ${supplier.name}?`
+    })
+    if (!isConfirmed) return
+
+    setSaving(true)
+    try {
+      await supabase.from('suppliers').update({
+        outstandingAmount: 0,
+        nextPaymentDate: null
+      }).eq('id', supplier.id)
+
+      showToast('success', `Outstanding balance for ${supplier.name} cleared successfully.`)
+    } catch (err) {
+      console.error(err)
+      showToast('error', 'Failed to clear outstanding balance.')
     } finally {
       setSaving(false)
     }
@@ -220,10 +243,18 @@ export default function AdminSuppliersPage() {
                   <button onClick={() => { setEditing(s); setModal(true) }} className="text-primary hover:scale-110 transition-transform"><Edit2 size={16} /></button>
                   <button onClick={() => del(s.id)} className="text-red-400 hover:scale-110 transition-transform"><Trash2 size={16} /></button>
                 </div>
-                <button onClick={() => setSupplyMod(s)}
-                  className="bg-gray-900 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2 active:scale-95 transition-all">
-                  <PackageCheck size={14} /> Confirm Supply
-                </button>
+                <div className="flex gap-2">
+                  {(s.outstandingAmount ?? 0) > 0 && (
+                    <button onClick={() => handleClearBalance(s)}
+                      className="border border-green-500 text-green-600 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center gap-1.5">
+                      <Coins size={14} /> Clear
+                    </button>
+                  )}
+                  <button onClick={() => setSupplyMod(s)}
+                    className="bg-gray-900 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2 active:scale-95 transition-all">
+                    <PackageCheck size={14} /> Confirm Supply
+                  </button>
+                </div>
               </div>
             </div>
           )
@@ -285,7 +316,7 @@ function SupplyConfirmModal({ supplier, inventoryItems, onConfirm, onClose, load
 
             <div className="grid grid-cols-2 gap-4">
               <div className="text-left">
-               <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2 mb-1.5 block">Quantity</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2 mb-1.5 block">Quantity</label>
                 <input type="number" value={qty} onChange={e => setQty(e.target.value)} placeholder="0" className="input-field py-4 bg-gray-50 border-transparent focus:bg-white focus:border-primary transition-all" />
               </div>
               <div className="text-left">
